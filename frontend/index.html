@@ -1,14 +1,13 @@
 <!DOCTYPE html>
 <html lang="es">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>HelpDesk HUS</title>
     <link rel="stylesheet" href="styles.css">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏥</text></svg>">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 </head>
-
 <body>
 
     <!-- ── LOGIN ─────────────────────────────────────────────── -->
@@ -62,7 +61,11 @@
                 <a href="#" class="nav-item" onclick="showSection('locations', this)">
                     <i class="fas fa-map-marker-alt"></i> Sedes
                 </a>
-                <!-- Solo visible para admin -->
+                <a href="#" class="nav-item" id="nav-inventory" onclick="showSection('inventory', this)">
+                    <i class="fas fa-boxes"></i> Inventario
+                </a>
+
+                <!-- Solo visible para admin y técnico -->
                 <div id="admin-nav" class="hidden">
                     <div class="nav-divider">Administración</div>
                     <a href="#" class="nav-item" id="nav-users" onclick="showSection('admin-users', this)">
@@ -259,6 +262,144 @@
                 <div id="locations-list" class="locations-grid"></div>
             </div>
 
+            <!-- Inventario -->
+            <div id="section-inventory" class="section hidden">
+                <div class="section-header">
+                    <h3>Inventario de Activos</h3>
+                    <button id="btn-add-asset" class="btn btn-primary hidden" onclick="showCreateAsset()">
+                        <i class="fas fa-plus"></i> Nuevo Activo
+                    </button>
+                </div>
+
+                <!-- Stats de inventario -->
+                <div id="inventory-stats" class="metrics-grid" style="grid-template-columns: repeat(5,1fr); margin-bottom:1.5rem;"></div>
+
+                <!-- Filtros -->
+                <div class="filter-bar card" style="margin-bottom:1rem; padding:1rem;">
+                    <div class="form-row">
+                        <div class="form-group" style="margin-bottom:0">
+                            <label>Filtrar por sede</label>
+                            <select id="asset-filter-location" onchange="loadInventory()">
+                                <option value="">Todas las sedes</option>
+                            </select>
+                        </div>
+                        <div class="form-group" style="margin-bottom:0">
+                            <label>Filtrar por tipo</label>
+                            <select id="asset-filter-type" onchange="loadInventory()">
+                                <option value="">Todos los tipos</option>
+                                <option value="computer">Computador</option>
+                                <option value="laptop">Laptop</option>
+                                <option value="printer">Impresora</option>
+                                <option value="server">Servidor</option>
+                                <option value="network">Red</option>
+                                <option value="phone">Teléfono</option>
+                                <option value="medical_equipment">Equipo Médico</option>
+                                <option value="monitor">Monitor</option>
+                                <option value="ups">UPS</option>
+                                <option value="other">Otro</option>
+                            </select>
+                        </div>
+                        <div class="form-group" style="margin-bottom:0">
+                            <label>Filtrar por estado</label>
+                            <select id="asset-filter-status" onchange="loadInventory()">
+                                <option value="">Todos los estados</option>
+                                <option value="active">Activo</option>
+                                <option value="in_repair">En Reparación</option>
+                                <option value="maintenance">Mantenimiento</option>
+                                <option value="retired">Dado de Baja</option>
+                                <option value="stolen">Robado</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Formulario crear activo -->
+                <div id="create-asset-form" class="card hidden">
+                    <h3>Registrar Nuevo Activo</h3>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Nombre del activo</label>
+                            <input type="text" id="a-name" placeholder="PC Consulta 5">
+                        </div>
+                        <div class="form-group">
+                            <label>Código interno (TAG)</label>
+                            <input type="text" id="a-tag" placeholder="HUS-001">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Tipo</label>
+                            <select id="a-type">
+                                <option value="computer">Computador</option>
+                                <option value="laptop">Laptop</option>
+                                <option value="printer">Impresora</option>
+                                <option value="server">Servidor</option>
+                                <option value="network">Red</option>
+                                <option value="phone">Teléfono</option>
+                                <option value="medical_equipment">Equipo Médico</option>
+                                <option value="monitor">Monitor</option>
+                                <option value="ups">UPS</option>
+                                <option value="other">Otro</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Estado</label>
+                            <select id="a-status">
+                                <option value="active">Activo</option>
+                                <option value="in_repair">En Reparación</option>
+                                <option value="maintenance">Mantenimiento</option>
+                                <option value="retired">Dado de Baja</option>
+                                <option value="stolen">Robado</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Marca</label>
+                            <input type="text" id="a-brand" placeholder="Dell, HP, Lenovo...">
+                        </div>
+                        <div class="form-group">
+                            <label>Modelo</label>
+                            <input type="text" id="a-model" placeholder="OptiPlex 7090">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Número de serie</label>
+                            <input type="text" id="a-serial" placeholder="SN-123456789">
+                        </div>
+                        <div class="form-group">
+                            <label>Sede</label>
+                            <select id="a-location">
+                                <option value="">Sin sede</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Fecha de compra</label>
+                            <input type="date" id="a-purchase">
+                        </div>
+                        <div class="form-group">
+                            <label>Vencimiento garantía</label>
+                            <input type="date" id="a-warranty">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Descripción / Notas</label>
+                        <textarea id="a-description" placeholder="Notas adicionales del activo..."></textarea>
+                    </div>
+                    <div class="form-actions">
+                        <button class="btn btn-secondary" onclick="hideCreateAsset()">Cancelar</button>
+                        <button class="btn btn-primary" onclick="createAsset()">
+                            <i class="fas fa-save"></i> Registrar Activo
+                        </button>
+                    </div>
+                </div>
+
+                <div id="inventory-list" class="inventory-grid"></div>
+            </div>
+
             <!-- Admin: Usuarios -->
             <div id="section-admin-users" class="section hidden">
                 <div class="section-header">
@@ -374,5 +515,4 @@
 
     <script src="app.js"></script>
 </body>
-
 </html>

@@ -6,6 +6,7 @@ from app.schemas.attachment import AttachmentResponse, AttachmentSummary
 from app.schemas.notification import NotificationResponse, NotificationUpdate
 from app.schemas.auth import LoginRequest, TokenResponse, TokenData
 from app.schemas.location import LocationCreate, LocationUpdate, LocationResponse, LocationSummary
+from app.schemas.asset import AssetCreate, AssetUpdate, AssetResponse, AssetSummary
 
 __all__ = [
     "UserBase", "UserCreate", "UserUpdate", "UserResponse", "UserSummary",
@@ -16,4 +17,5 @@ __all__ = [
     "NotificationResponse", "NotificationUpdate",
     "LoginRequest", "TokenResponse", "TokenData",
     "LocationCreate", "LocationUpdate", "LocationResponse", "LocationSummary",
+    "AssetCreate", "AssetUpdate", "AssetResponse", "AssetSummary",
 ]

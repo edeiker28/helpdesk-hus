@@ -7,7 +7,7 @@ import os
 
 from app.config import settings
 from app.database import verify_database_connection
-from app.routers import auth, users, tickets, incidents, comments, attachments, notifications, dashboard, locations
+from app.routers import auth, users, tickets, incidents, comments, attachments, notifications, dashboard, locations, assets
 
 logging.basicConfig(
     level=logging.DEBUG if settings.DEBUG else logging.INFO,
@@ -35,11 +35,11 @@ app = FastAPI(
     description="""
     ## Sistema de Mesa de Ayuda — Hospital Universitario de Sincelejo
 
-    API REST para gestión de tickets, incidentes, usuarios, sedes y notificaciones.
+    API REST para gestión de tickets, incidentes, usuarios, sedes, activos y notificaciones.
 
     ### Roles del sistema:
     - **Admin**: Acceso total al sistema
-    - **Technician**: Gestión de tickets e incidentes asignados
+    - **Technician**: Gestión de tickets, incidentes y activos
     - **End User**: Creación y seguimiento de sus propios tickets
     """,
     docs_url="/docs",
@@ -71,6 +71,7 @@ app.include_router(attachments.router,   prefix="/api/v1/attachments",   tags=["
 app.include_router(notifications.router, prefix="/api/v1/notifications", tags=["Notificaciones"])
 app.include_router(dashboard.router,     prefix="/api/v1/dashboard",     tags=["Dashboard"])
 app.include_router(locations.router,     prefix="/api/v1/locations",     tags=["Sedes"])
+app.include_router(assets.router,        prefix="/api/v1/assets",        tags=["Inventario"])
 
 
 @app.get("/", tags=["Health"])

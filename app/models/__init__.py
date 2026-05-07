@@ -5,6 +5,7 @@ from app.models.ticket import Ticket
 from app.models.comment import Comment
 from app.models.attachment import Attachment
 from app.models.notification import Notification
+from app.models.asset import Asset
 
 __all__ = [
     "Location",
@@ -14,4 +15,5 @@ __all__ = [
     "Comment",
     "Attachment",
     "Notification",
+    "Asset",
 ]

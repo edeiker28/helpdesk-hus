@@ -19,6 +19,7 @@ class Location(Base):
     # Relaciones
     users = relationship("User", back_populates="location")
     tickets = relationship("Ticket", back_populates="location")
+    assets = relationship("Asset", back_populates="location")
 
     def __repr__(self):
         return f"<Location id={self.id} name={self.name}>"

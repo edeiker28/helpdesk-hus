@@ -55,3 +55,24 @@ class NotificationType(str, Enum):
     INCIDENT_CREATED = "incident_created"
     INCIDENT_UPDATED = "incident_updated"
     COMMENT_ADDED = "comment_added"
+
+
+class AssetType(str, Enum):
+    COMPUTER = "computer"
+    LAPTOP = "laptop"
+    PRINTER = "printer"
+    SERVER = "server"
+    NETWORK = "network"
+    PHONE = "phone"
+    MEDICAL_EQUIPMENT = "medical_equipment"
+    MONITOR = "monitor"
+    UPS = "ups"
+    OTHER = "other"
+
+
+class AssetStatus(str, Enum):
+    ACTIVE = "active"
+    IN_REPAIR = "in_repair"
+    RETIRED = "retired"
+    STOLEN = "stolen"
+    MAINTENANCE = "maintenance"

@@ -75,29 +75,25 @@ async function showApp() {
     const isAdmin = currentUser.role === 'admin';
     const isTech = currentUser.role === 'technician';
 
-    // Admin ve todo el menú de administración
     if (isAdmin) {
         document.getElementById('admin-nav').classList.remove('hidden');
         document.getElementById('nav-users').classList.remove('hidden');
         document.getElementById('nav-all-tickets').classList.remove('hidden');
         document.getElementById('btn-add-location').classList.remove('hidden');
+        document.getElementById('btn-add-asset').classList.remove('hidden');
         document.getElementById('location-filter-bar').classList.remove('hidden');
     }
 
-    // Técnico solo ve "Todos los tickets" en el menú
     if (isTech) {
         document.getElementById('admin-nav').classList.remove('hidden');
         document.getElementById('nav-users').classList.add('hidden');
         document.getElementById('nav-all-tickets').classList.remove('hidden');
-    }
-
-    // Usuario final no ve nada del menú admin
-    if (!isAdmin && !isTech) {
-        document.getElementById('admin-nav').classList.add('hidden');
+        document.getElementById('btn-add-asset').classList.remove('hidden');
     }
 
     await loadLocations();
     await loadTechnicians();
+    populateAssetLocationFilter();
 
     if (currentUser.location_id) {
         const loc = allLocations.find(l => l.id === currentUser.location_id);
@@ -116,7 +112,7 @@ async function loadLocations() {
         const res = await apiFetch('/locations/');
         allLocations = await res.json();
 
-        const selects = ['t-location', 'u-location', 'filter-location'];
+        const selects = ['t-location', 'u-location', 'filter-location', 'a-location'];
         selects.forEach(id => {
             const el = document.getElementById(id);
             if (!el) return;
@@ -133,6 +129,20 @@ async function loadLocations() {
     } catch (err) {
         console.error('Error cargando sedes:', err);
     }
+}
+
+function populateAssetLocationFilter() {
+    const el = document.getElementById('asset-filter-location');
+    if (!el) return;
+    const defaultOpt = el.options[0];
+    el.innerHTML = '';
+    el.appendChild(defaultOpt);
+    allLocations.forEach(l => {
+        const opt = document.createElement('option');
+        opt.value = l.id;
+        opt.textContent = l.name;
+        el.appendChild(opt);
+    });
 }
 
 async function loadTechnicians() {
@@ -161,13 +171,11 @@ function showSection(name, el) {
     const isAdmin = currentUser.role === 'admin';
     const isTech = currentUser.role === 'technician';
 
-    // Solo admin puede ver gestión de usuarios
     if (name === 'admin-users' && !isAdmin) {
         alert('Solo los administradores pueden gestionar usuarios');
         return;
     }
 
-    // Solo admin y técnico pueden ver todos los tickets
     if (name === 'admin-tickets' && !isAdmin && !isTech) {
         alert('No tienes permiso para acceder a esta sección');
         return;
@@ -190,11 +198,11 @@ function showSection(name, el) {
     if (name === 'incidents') loadIncidents();
     if (name === 'notifications') loadNotifications();
     if (name === 'locations') loadLocationsList();
+    if (name === 'inventory') loadInventory();
     if (name === 'admin-users') loadUsers();
     if (name === 'admin-tickets') loadAllTickets();
 }
 
-// ── FILTRO POR SEDE ───────────────────────────────────────────
 function applyLocationFilter() {
     const section = document.querySelector('.section.active');
     if (!section) return;
@@ -209,7 +217,6 @@ async function loadDashboard() {
         if (currentUser.role === 'end_user') {
             const res = await apiFetch('/tickets/');
             const tickets = await res.json();
-
             const open = tickets.filter(t => t.status === 'open').length;
             const inProgress = tickets.filter(t => t.status === 'in_progress').length;
             const resolved = tickets.filter(t => t.status === 'resolved').length;
@@ -237,24 +244,11 @@ async function loadDashboard() {
                     <span class="priority-count">${tickets.filter(t => t.priority === 'low').length}</span>
                 </div>
             `;
-
             document.getElementById('summary-list').innerHTML = `
-                <div class="summary-item">
-                    <span>Mis tickets totales</span>
-                    <span class="summary-value">${tickets.length}</span>
-                </div>
-                <div class="summary-item">
-                    <span>Abiertos</span>
-                    <span class="summary-value">${open}</span>
-                </div>
-                <div class="summary-item">
-                    <span>En progreso</span>
-                    <span class="summary-value">${inProgress}</span>
-                </div>
-                <div class="summary-item">
-                    <span>Resueltos</span>
-                    <span class="summary-value">${resolved}</span>
-                </div>
+                <div class="summary-item"><span>Mis tickets totales</span><span class="summary-value">${tickets.length}</span></div>
+                <div class="summary-item"><span>Abiertos</span><span class="summary-value">${open}</span></div>
+                <div class="summary-item"><span>En progreso</span><span class="summary-value">${inProgress}</span></div>
+                <div class="summary-item"><span>Resueltos</span><span class="summary-value">${resolved}</span></div>
             `;
             return;
         }
@@ -265,8 +259,7 @@ async function loadDashboard() {
         document.getElementById('m-open').textContent = data.tickets.open;
         document.getElementById('m-progress').textContent = data.tickets.in_progress;
         document.getElementById('m-resolved').textContent = data.tickets.resolved;
-        document.getElementById('m-incidents').textContent =
-            data.incidents.open + data.incidents.in_progress;
+        document.getElementById('m-incidents').textContent = data.incidents.open + data.incidents.in_progress;
 
         document.getElementById('priority-list').innerHTML = `
             <div class="priority-item">
@@ -286,28 +279,12 @@ async function loadDashboard() {
                 <span class="priority-count">${data.tickets_by_priority.low}</span>
             </div>
         `;
-
         document.getElementById('summary-list').innerHTML = `
-            <div class="summary-item">
-                <span>Total tickets</span>
-                <span class="summary-value">${data.tickets.total}</span>
-            </div>
-            <div class="summary-item">
-                <span>Tickets cerrados</span>
-                <span class="summary-value">${data.tickets.closed}</span>
-            </div>
-            <div class="summary-item">
-                <span>Incidentes resueltos</span>
-                <span class="summary-value">${data.incidents.resolved}</span>
-            </div>
-            <div class="summary-item">
-                <span>Total usuarios</span>
-                <span class="summary-value">${data.total_users}</span>
-            </div>
-            <div class="summary-item">
-                <span>Sedes activas</span>
-                <span class="summary-value">${allLocations.length}</span>
-            </div>
+            <div class="summary-item"><span>Total tickets</span><span class="summary-value">${data.tickets.total}</span></div>
+            <div class="summary-item"><span>Tickets cerrados</span><span class="summary-value">${data.tickets.closed}</span></div>
+            <div class="summary-item"><span>Incidentes resueltos</span><span class="summary-value">${data.incidents.resolved}</span></div>
+            <div class="summary-item"><span>Total usuarios</span><span class="summary-value">${data.total_users}</span></div>
+            <div class="summary-item"><span>Sedes activas</span><span class="summary-value">${allLocations.length}</span></div>
         `;
     } catch (err) {
         console.error('Error cargando dashboard:', err);
@@ -318,16 +295,10 @@ async function loadDashboard() {
 async function loadTickets() {
     const container = document.getElementById('tickets-list');
     container.innerHTML = '<p style="color:#64748b">Cargando...</p>';
-
     try {
         const res = await apiFetch('/tickets/');
         const tickets = await res.json();
-
-        if (tickets.length === 0) {
-            container.innerHTML = emptyState('ticket-alt', 'No tienes tickets aún');
-            return;
-        }
-
+        if (tickets.length === 0) { container.innerHTML = emptyState('ticket-alt', 'No tienes tickets aún'); return; }
         container.innerHTML = tickets.map(t => ticketCard(t, false)).join('');
     } catch (err) {
         container.innerHTML = '<p style="color:red">Error cargando tickets</p>';
@@ -337,21 +308,12 @@ async function loadTickets() {
 async function loadAllTickets() {
     const container = document.getElementById('admin-tickets-list');
     container.innerHTML = '<p style="color:#64748b">Cargando...</p>';
-
     try {
         const res = await apiFetch('/tickets/');
         let tickets = await res.json();
-
         const locationId = document.getElementById('filter-location')?.value;
-        if (locationId) {
-            tickets = tickets.filter(t => t.location_id == locationId);
-        }
-
-        if (tickets.length === 0) {
-            container.innerHTML = emptyState('ticket-alt', 'No hay tickets');
-            return;
-        }
-
+        if (locationId) tickets = tickets.filter(t => t.location_id == locationId);
+        if (tickets.length === 0) { container.innerHTML = emptyState('ticket-alt', 'No hay tickets'); return; }
         container.innerHTML = tickets.map(t => ticketCard(t, true)).join('');
     } catch (err) {
         container.innerHTML = '<p style="color:red">Error cargando tickets</p>';
@@ -363,7 +325,6 @@ function ticketCard(t, showEdit) {
     const locBadge = loc ? `<span class="tag tag-location"><i class="fas fa-map-marker-alt"></i> ${loc.name}</span>` : '';
     const canEdit = showEdit && (currentUser.role === 'admin' || currentUser.role === 'technician');
     const editBtn = canEdit ? `<button class="btn-edit" onclick="openEditTicket(${t.id}, '${t.status}', '${t.priority}', ${t.assigned_to_id || 'null'})"><i class="fas fa-edit"></i></button>` : '';
-
     return `
         <div class="ticket-card priority-${t.priority}">
             <div class="ticket-header">
@@ -385,13 +346,8 @@ function ticketCard(t, showEdit) {
     `;
 }
 
-function showCreateTicket() {
-    document.getElementById('create-ticket-form').classList.remove('hidden');
-}
-
-function hideCreateTicket() {
-    document.getElementById('create-ticket-form').classList.add('hidden');
-}
+function showCreateTicket() { document.getElementById('create-ticket-form').classList.remove('hidden'); }
+function hideCreateTicket() { document.getElementById('create-ticket-form').classList.add('hidden'); }
 
 async function createTicket() {
     const title = document.getElementById('t-title').value;
@@ -400,34 +356,22 @@ async function createTicket() {
     const priority = document.getElementById('t-priority').value;
     const location_id = document.getElementById('t-location').value || null;
 
-    if (!title || !description) {
-        alert('El título y la descripción son obligatorios');
-        return;
-    }
+    if (!title || !description) { alert('El título y la descripción son obligatorios'); return; }
 
     try {
         const res = await apiFetch('/tickets/', {
             method: 'POST',
-            body: JSON.stringify({
-                title, description, category, priority,
-                location_id: location_id ? parseInt(location_id) : null
-            }),
+            body: JSON.stringify({ title, description, category, priority, location_id: location_id ? parseInt(location_id) : null }),
         });
-
         if (res.ok) {
             hideCreateTicket();
             document.getElementById('t-title').value = '';
             document.getElementById('t-description').value = '';
             loadTickets();
-        } else {
-            alert('Error al crear el ticket');
-        }
-    } catch (err) {
-        alert('Error de conexión');
-    }
+        } else { alert('Error al crear el ticket'); }
+    } catch (err) { alert('Error de conexión'); }
 }
 
-// ── EDITAR TICKET ─────────────────────────────────────────────
 function openEditTicket(id, status, priority, assignedId) {
     editingTicketId = id;
     document.getElementById('edit-status').value = status;
@@ -441,47 +385,27 @@ async function saveTicketEdit() {
     const status = document.getElementById('edit-status').value;
     const priority = document.getElementById('edit-priority').value;
     const assigned = document.getElementById('edit-assigned').value;
-
     try {
         const res = await apiFetch(`/tickets/${editingTicketId}`, {
             method: 'PATCH',
-            body: JSON.stringify({
-                status,
-                priority,
-                assigned_to_id: assigned ? parseInt(assigned) : null,
-            }),
+            body: JSON.stringify({ status, priority, assigned_to_id: assigned ? parseInt(assigned) : null }),
         });
-
-        if (res.ok) {
-            closeAllModals();
-            loadAllTickets();
-        } else {
-            alert('Error al actualizar el ticket');
-        }
-    } catch (err) {
-        alert('Error de conexión');
-    }
+        if (res.ok) { closeAllModals(); loadAllTickets(); }
+        else { alert('Error al actualizar el ticket'); }
+    } catch (err) { alert('Error de conexión'); }
 }
 
 // ── INCIDENTES ────────────────────────────────────────────────
 async function loadIncidents() {
     const container = document.getElementById('incidents-list');
     container.innerHTML = '<p style="color:#64748b">Cargando...</p>';
-
     try {
         const res = await apiFetch('/incidents/');
         const incidents = await res.json();
-
-        if (incidents.length === 0) {
-            container.innerHTML = emptyState('exclamation-triangle', 'No hay incidentes registrados');
-            return;
-        }
-
+        if (incidents.length === 0) { container.innerHTML = emptyState('exclamation-triangle', 'No hay incidentes'); return; }
         container.innerHTML = incidents.map(i => `
             <div class="ticket-card priority-${i.severity}">
-                <div class="ticket-header">
-                    <span class="ticket-title">#${i.id} — ${i.title}</span>
-                </div>
+                <div class="ticket-header"><span class="ticket-title">#${i.id} — ${i.title}</span></div>
                 <div class="ticket-meta">
                     <span class="tag tag-status-${i.status}">${statusLabel(i.status)}</span>
                     <span class="tag tag-priority-${i.severity}">${priorityLabel(i.severity)}</span>
@@ -492,25 +416,17 @@ async function loadIncidents() {
                 </div>
             </div>
         `).join('');
-    } catch (err) {
-        container.innerHTML = '<p style="color:red">Error cargando incidentes</p>';
-    }
+    } catch (err) { container.innerHTML = '<p style="color:red">Error cargando incidentes</p>'; }
 }
 
 // ── NOTIFICACIONES ────────────────────────────────────────────
 async function loadNotifications() {
     const container = document.getElementById('notifications-list');
     container.innerHTML = '<p style="color:#64748b">Cargando...</p>';
-
     try {
         const res = await apiFetch('/notifications/');
         const notifs = await res.json();
-
-        if (notifs.length === 0) {
-            container.innerHTML = emptyState('bell', 'No tienes notificaciones');
-            return;
-        }
-
+        if (notifs.length === 0) { container.innerHTML = emptyState('bell', 'No tienes notificaciones'); return; }
         container.innerHTML = notifs.map(n => `
             <div class="notif-card ${n.is_read ? '' : 'unread'}">
                 <i class="fas fa-bell notif-icon"></i>
@@ -518,11 +434,8 @@ async function loadNotifications() {
                 <span class="notif-date">${formatDate(n.created_at)}</span>
             </div>
         `).join('');
-
         loadUnreadCount();
-    } catch (err) {
-        container.innerHTML = '<p style="color:red">Error cargando notificaciones</p>';
-    }
+    } catch (err) { container.innerHTML = '<p style="color:red">Error cargando notificaciones</p>'; }
 }
 
 async function markAllRead() {
@@ -535,12 +448,8 @@ async function loadUnreadCount() {
         const res = await apiFetch('/notifications/unread-count');
         const data = await res.json();
         const badge = document.getElementById('notif-badge');
-        if (data.unread_count > 0) {
-            badge.textContent = data.unread_count;
-            badge.classList.remove('hidden');
-        } else {
-            badge.classList.add('hidden');
-        }
+        if (data.unread_count > 0) { badge.textContent = data.unread_count; badge.classList.remove('hidden'); }
+        else { badge.classList.add('hidden'); }
     } catch (err) {}
 }
 
@@ -548,21 +457,13 @@ async function loadUnreadCount() {
 async function loadLocationsList() {
     const container = document.getElementById('locations-list');
     container.innerHTML = '<p style="color:#64748b">Cargando...</p>';
-
     try {
         const res = await apiFetch('/locations/');
         const locations = await res.json();
-
-        if (locations.length === 0) {
-            container.innerHTML = emptyState('map-marker-alt', 'No hay sedes registradas');
-            return;
-        }
-
+        if (locations.length === 0) { container.innerHTML = emptyState('map-marker-alt', 'No hay sedes'); return; }
         container.innerHTML = locations.map(l => `
             <div class="location-card ${l.is_active ? '' : 'inactive'}">
-                <div class="location-icon">
-                    <i class="fas fa-hospital-alt"></i>
-                </div>
+                <div class="location-icon"><i class="fas fa-hospital-alt"></i></div>
                 <div class="location-info">
                     <h4>${l.name}</h4>
                     ${l.address ? `<p><i class="fas fa-map-marker-alt"></i> ${l.address}</p>` : ''}
@@ -576,113 +477,215 @@ async function loadLocationsList() {
                 </div>
             </div>
         `).join('');
-    } catch (err) {
-        container.innerHTML = '<p style="color:red">Error cargando sedes</p>';
-    }
+    } catch (err) { container.innerHTML = '<p style="color:red">Error cargando sedes</p>'; }
 }
 
 function showCreateLocation() {
-    if (currentUser.role !== 'admin') {
-        alert('Solo los administradores pueden crear sedes');
-        return;
-    }
+    if (currentUser.role !== 'admin') { alert('Solo los administradores pueden crear sedes'); return; }
     document.getElementById('create-location-form').classList.remove('hidden');
 }
-
-function hideCreateLocation() {
-    document.getElementById('create-location-form').classList.add('hidden');
-}
+function hideCreateLocation() { document.getElementById('create-location-form').classList.add('hidden'); }
 
 async function createLocation() {
     const name = document.getElementById('l-name').value;
     const address = document.getElementById('l-address').value;
     const phone = document.getElementById('l-phone').value;
     const description = document.getElementById('l-description').value;
-
-    if (!name) {
-        alert('El nombre es obligatorio');
-        return;
-    }
-
+    if (!name) { alert('El nombre es obligatorio'); return; }
     try {
         const res = await apiFetch('/locations/', {
             method: 'POST',
             body: JSON.stringify({ name, address, phone, description }),
         });
-
         if (res.ok) {
             hideCreateLocation();
-            document.getElementById('l-name').value = '';
-            document.getElementById('l-address').value = '';
-            document.getElementById('l-phone').value = '';
-            document.getElementById('l-description').value = '';
+            ['l-name','l-address','l-phone','l-description'].forEach(id => document.getElementById(id).value = '');
             await loadLocations();
             loadLocationsList();
         } else {
             const err = await res.json();
             alert(err.detail || 'Error al crear la sede');
         }
+    } catch (err) { alert('Error de conexión'); }
+}
+
+// ── INVENTARIO ────────────────────────────────────────────────
+async function loadInventory() {
+    const container = document.getElementById('inventory-list');
+    container.innerHTML = '<p style="color:#64748b">Cargando...</p>';
+
+    try {
+        // Cargar stats
+        const statsRes = await apiFetch('/assets/stats');
+        const stats = await statsRes.json();
+
+        document.getElementById('inventory-stats').innerHTML = `
+            <div class="metric-card blue">
+                <i class="fas fa-boxes"></i>
+                <div class="metric-info">
+                    <span class="metric-value">${stats.total}</span>
+                    <span class="metric-label">Total Activos</span>
+                </div>
+            </div>
+            <div class="metric-card green">
+                <i class="fas fa-check-circle"></i>
+                <div class="metric-info">
+                    <span class="metric-value">${stats.active}</span>
+                    <span class="metric-label">Activos</span>
+                </div>
+            </div>
+            <div class="metric-card yellow">
+                <i class="fas fa-tools"></i>
+                <div class="metric-info">
+                    <span class="metric-value">${stats.in_repair}</span>
+                    <span class="metric-label">En Reparación</span>
+                </div>
+            </div>
+            <div class="metric-card red">
+                <i class="fas fa-wrench"></i>
+                <div class="metric-info">
+                    <span class="metric-value">${stats.maintenance}</span>
+                    <span class="metric-label">Mantenimiento</span>
+                </div>
+            </div>
+            <div class="metric-card" style="border-left: 4px solid #64748b;">
+                <i class="fas fa-archive" style="font-size:2rem; color:#64748b"></i>
+                <div class="metric-info">
+                    <span class="metric-value">${stats.retired}</span>
+                    <span class="metric-label">Dados de Baja</span>
+                </div>
+            </div>
+        `;
+
+        // Construir URL con filtros
+        let url = '/assets/?';
+        const locFilter = document.getElementById('asset-filter-location')?.value;
+        const typeFilter = document.getElementById('asset-filter-type')?.value;
+        const statusFilter = document.getElementById('asset-filter-status')?.value;
+        if (locFilter) url += `location_id=${locFilter}&`;
+        if (typeFilter) url += `asset_type=${typeFilter}&`;
+        if (statusFilter) url += `status=${statusFilter}&`;
+
+        const res = await apiFetch(url);
+        const assets = await res.json();
+
+        if (assets.length === 0) {
+            container.innerHTML = emptyState('boxes', 'No hay activos registrados');
+            return;
+        }
+
+        container.innerHTML = assets.map(a => {
+            const loc = allLocations.find(l => l.id === a.location_id);
+            return `
+                <div class="asset-card status-${a.status}">
+                    <div class="asset-icon">${assetIcon(a.asset_type)}</div>
+                    <div class="asset-info">
+                        <div class="asset-header">
+                            <h4>${a.name}</h4>
+                            <span class="tag tag-asset-status-${a.status}">${assetStatusLabel(a.status)}</span>
+                        </div>
+                        ${a.asset_tag ? `<p class="asset-tag"><i class="fas fa-tag"></i> ${a.asset_tag}</p>` : ''}
+                        <div class="asset-meta">
+                            <span><i class="fas fa-layer-group"></i> ${assetTypeLabel(a.asset_type)}</span>
+                            ${a.brand ? `<span><i class="fas fa-industry"></i> ${a.brand}</span>` : ''}
+                            ${a.model ? `<span><i class="fas fa-cube"></i> ${a.model}</span>` : ''}
+                            ${loc ? `<span><i class="fas fa-map-marker-alt"></i> ${loc.name}</span>` : ''}
+                        </div>
+                    </div>
+                </div>
+            `;
+        }).join('');
     } catch (err) {
-        alert('Error de conexión');
+        container.innerHTML = '<p style="color:red">Error cargando inventario</p>';
     }
+}
+
+function showCreateAsset() {
+    if (currentUser.role === 'end_user') { 
+        alert('No tienes permiso para registrar activos'); 
+        return; 
+    }
+    const form = document.getElementById('create-asset-form');
+    form.classList.remove('hidden');
+    // Scroll automático al formulario
+    setTimeout(() => {
+        form.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 100);
+}
+function hideCreateAsset() { document.getElementById('create-asset-form').classList.add('hidden'); }
+
+async function createAsset() {
+    const name = document.getElementById('a-name').value;
+    const asset_tag = document.getElementById('a-tag').value || null;
+    const serial_number = document.getElementById('a-serial').value || null;
+    const asset_type = document.getElementById('a-type').value;
+    const status = document.getElementById('a-status').value;
+    const brand = document.getElementById('a-brand').value || null;
+    const model = document.getElementById('a-model').value || null;
+    const description = document.getElementById('a-description').value || null;
+    const purchase_date = document.getElementById('a-purchase').value || null;
+    const warranty_expiry = document.getElementById('a-warranty').value || null;
+    const location_id = document.getElementById('a-location').value || null;
+
+    if (!name) { alert('El nombre es obligatorio'); return; }
+
+    try {
+        const res = await apiFetch('/assets/', {
+            method: 'POST',
+            body: JSON.stringify({
+                name, asset_tag, serial_number, asset_type, status,
+                brand, model, description, purchase_date, warranty_expiry,
+                location_id: location_id ? parseInt(location_id) : null,
+            }),
+        });
+        if (res.ok) {
+            hideCreateAsset();
+            ['a-name','a-tag','a-serial','a-brand','a-model','a-description','a-purchase','a-warranty']
+                .forEach(id => document.getElementById(id).value = '');
+            loadInventory();
+        } else {
+            const err = await res.json();
+            alert(err.detail || 'Error al registrar el activo');
+        }
+    } catch (err) { alert('Error de conexión'); }
 }
 
 // ── ADMIN: USUARIOS ───────────────────────────────────────────
 async function loadUsers() {
     const container = document.getElementById('users-list');
     container.innerHTML = '<p style="color:#64748b">Cargando...</p>';
-
     try {
         const res = await apiFetch('/users/');
         const users = await res.json();
-
         container.innerHTML = `
             <table class="admin-table">
                 <thead>
                     <tr>
-                        <th>#</th>
-                        <th>Nombre</th>
-                        <th>Email</th>
-                        <th>Rol</th>
-                        <th>Sede</th>
-                        <th>Departamento</th>
-                        <th>Estado</th>
+                        <th>#</th><th>Nombre</th><th>Email</th>
+                        <th>Rol</th><th>Sede</th><th>Departamento</th><th>Estado</th>
                     </tr>
                 </thead>
                 <tbody>
                     ${users.map(u => {
                         const loc = allLocations.find(l => l.id === u.location_id);
-                        return `
-                            <tr>
-                                <td>${u.id}</td>
-                                <td>${u.full_name}</td>
-                                <td>${u.email}</td>
-                                <td><span class="tag tag-role-${u.role}">${roleLabel(u.role)}</span></td>
-                                <td>${loc ? loc.name : '—'}</td>
-                                <td>${u.department || '—'}</td>
-                                <td>
-                                    <span class="tag ${u.is_active ? 'tag-status-resolved' : 'tag-status-closed'}">
-                                        ${u.is_active ? 'Activo' : 'Inactivo'}
-                                    </span>
-                                </td>
-                            </tr>
-                        `;
+                        return `<tr>
+                            <td>${u.id}</td>
+                            <td>${u.full_name}</td>
+                            <td>${u.email}</td>
+                            <td><span class="tag tag-role-${u.role}">${roleLabel(u.role)}</span></td>
+                            <td>${loc ? loc.name : '—'}</td>
+                            <td>${u.department || '—'}</td>
+                            <td><span class="tag ${u.is_active ? 'tag-status-resolved' : 'tag-status-closed'}">${u.is_active ? 'Activo' : 'Inactivo'}</span></td>
+                        </tr>`;
                     }).join('')}
                 </tbody>
             </table>
         `;
-    } catch (err) {
-        container.innerHTML = '<p style="color:red">Error cargando usuarios</p>';
-    }
+    } catch (err) { container.innerHTML = '<p style="color:red">Error cargando usuarios</p>'; }
 }
 
-function showCreateUser() {
-    document.getElementById('create-user-form').classList.remove('hidden');
-}
-
-function hideCreateUser() {
-    document.getElementById('create-user-form').classList.add('hidden');
-}
+function showCreateUser() { document.getElementById('create-user-form').classList.remove('hidden'); }
+function hideCreateUser() { document.getElementById('create-user-form').classList.add('hidden'); }
 
 async function createUser() {
     const full_name = document.getElementById('u-name').value;
@@ -693,35 +696,23 @@ async function createUser() {
     const department = document.getElementById('u-department').value;
     const phone = document.getElementById('u-phone').value;
 
-    if (!full_name || !email || !password) {
-        alert('Nombre, email y contraseña son obligatorios');
-        return;
-    }
+    if (!full_name || !email || !password) { alert('Nombre, email y contraseña son obligatorios'); return; }
 
     try {
         const res = await apiFetch('/auth/register', {
             method: 'POST',
-            body: JSON.stringify({
-                full_name, email, password, role,
-                location_id: location_id ? parseInt(location_id) : null,
-                department, phone
-            }),
+            body: JSON.stringify({ full_name, email, password, role, location_id: location_id ? parseInt(location_id) : null, department, phone }),
         });
-
         if (res.ok) {
             hideCreateUser();
-            document.getElementById('u-name').value = '';
-            document.getElementById('u-email').value = '';
-            document.getElementById('u-password').value = '';
+            ['u-name','u-email','u-password'].forEach(id => document.getElementById(id).value = '');
             loadUsers();
             await loadTechnicians();
         } else {
             const err = await res.json();
             alert(err.detail || 'Error al crear el usuario');
         }
-    } catch (err) {
-        alert('Error de conexión');
-    }
+    } catch (err) { alert('Error de conexión'); }
 }
 
 // ── MODALES ───────────────────────────────────────────────────
@@ -729,7 +720,6 @@ function closeModal(id) {
     document.getElementById(id).classList.add('hidden');
     document.getElementById('modal-overlay').classList.add('hidden');
 }
-
 function closeAllModals() {
     document.querySelectorAll('.modal').forEach(m => m.classList.add('hidden'));
     document.getElementById('modal-overlay').classList.add('hidden');
@@ -739,11 +729,7 @@ function closeAllModals() {
 async function apiFetch(path, options = {}) {
     return fetch(`${API}${path}`, {
         ...options,
-        headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`,
-            ...(options.headers || {}),
-        },
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}`, ...(options.headers || {}) },
     });
 }
 
@@ -754,49 +740,35 @@ function showError(el, msg) {
 }
 
 function emptyState(icon, msg) {
-    return `<div class="empty-state">
-        <i class="fas fa-${icon}"></i>
-        <p>${msg}</p>
-    </div>`;
+    return `<div class="empty-state"><i class="fas fa-${icon}"></i><p>${msg}</p></div>`;
 }
 
 function formatDate(dateStr) {
     if (!dateStr) return '';
-    return new Date(dateStr).toLocaleDateString('es-CO', {
-        day: '2-digit', month: 'short', year: 'numeric',
-        hour: '2-digit', minute: '2-digit',
-    });
+    return new Date(dateStr).toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 }
 
 function statusLabel(s) {
-    const labels = { open: 'Abierto', in_progress: 'En Progreso', resolved: 'Resuelto', closed: 'Cerrado' };
-    return labels[s] || s;
+    return { open: 'Abierto', in_progress: 'En Progreso', resolved: 'Resuelto', closed: 'Cerrado' }[s] || s;
 }
-
 function priorityLabel(p) {
-    const labels = { low: 'Baja', medium: 'Media', high: 'Alta', critical: 'Crítica' };
-    return labels[p] || p;
+    return { low: 'Baja', medium: 'Media', high: 'Alta', critical: 'Crítica' }[p] || p;
 }
-
 function categoryLabel(c) {
-    const labels = {
-        hardware: 'Hardware', software: 'Software', network: 'Red',
-        access: 'Acceso', printers: 'Impresoras', telephony: 'Telefonía',
-        medical_equipment: 'Equipo Médico', other: 'Otro',
-    };
-    return labels[c] || c;
+    return { hardware: 'Hardware', software: 'Software', network: 'Red', access: 'Acceso', printers: 'Impresoras', telephony: 'Telefonía', medical_equipment: 'Equipo Médico', other: 'Otro' }[c] || c;
 }
-
 function roleLabel(r) {
-    const labels = { admin: 'Administrador', technician: 'Técnico', end_user: 'Usuario' };
-    return labels[r] || r;
+    return { admin: 'Administrador', technician: 'Técnico', end_user: 'Usuario' }[r] || r;
 }
-
+function assetTypeLabel(t) {
+    return { computer: 'Computador', laptop: 'Laptop', printer: 'Impresora', server: 'Servidor', network: 'Red', phone: 'Teléfono', medical_equipment: 'Equipo Médico', monitor: 'Monitor', ups: 'UPS', other: 'Otro' }[t] || t;
+}
+function assetStatusLabel(s) {
+    return { active: 'Activo', in_repair: 'En Reparación', maintenance: 'Mantenimiento', retired: 'Dado de Baja', stolen: 'Robado' }[s] || s;
+}
+function assetIcon(t) {
+    return { computer: '🖥️', laptop: '💻', printer: '🖨️', server: '🗄️', network: '🌐', phone: '📞', medical_equipment: '🏥', monitor: '🖥️', ups: '🔋', other: '📦' }[t] || '📦';
+}
 function sectionTitle(s) {
-    const titles = {
-        dashboard: 'Dashboard', tickets: 'Tickets', incidents: 'Incidentes',
-        notifications: 'Notificaciones', locations: 'Sedes del HUS',
-        'admin-users': 'Gestión de Usuarios', 'admin-tickets': 'Gestión de Tickets',
-    };
-    return titles[s] || s;
+    return { dashboard: 'Dashboard', tickets: 'Tickets', incidents: 'Incidentes', notifications: 'Notificaciones', locations: 'Sedes del HUS', inventory: 'Inventario de Activos', 'admin-users': 'Gestión de Usuarios', 'admin-tickets': 'Gestión de Tickets' }[s] || s;
 }
