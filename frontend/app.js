@@ -1,6 +1,9 @@
 const API = 'http://192.168.1.116:8000/api/v1';
 let token = localStorage.getItem('token') || null;
 let currentUser = JSON.parse(localStorage.getItem('currentUser') || 'null');
+let allLocations = [];
+let allTechnicians = [];
+let editingTicketId = null;
 
 // ── INICIALIZACIÓN ────────────────────────────────────────────
 window.onload = () => {
@@ -36,7 +39,6 @@ async function login() {
         token = data.access_token;
         localStorage.setItem('token', token);
 
-        // Obtener info del usuario
         const userRes = await fetch(`${API}/users/me`, {
             headers: { 'Authorization': `Bearer ${token}` },
         });
@@ -62,19 +64,86 @@ function logout() {
     document.getElementById('login-password').value = '';
 }
 
-function showApp() {
+async function showApp() {
     document.getElementById('login-page').classList.remove('active');
     document.getElementById('login-page').classList.add('hidden');
     document.getElementById('app-page').classList.remove('hidden');
     document.getElementById('app-page').classList.add('active');
     document.getElementById('user-name').textContent = currentUser.full_name;
     document.getElementById('user-role').textContent = roleLabel(currentUser.role);
+
+    // Mostrar menú admin si es admin
+    if (currentUser.role === 'admin') {
+        document.getElementById('admin-nav').classList.remove('hidden');
+        document.getElementById('btn-add-location').classList.remove('hidden');
+        document.getElementById('location-filter-bar').classList.remove('hidden');
+    }
+
+    // Cargar datos globales
+    await loadLocations();
+    await loadTechnicians();
+
+    // Mostrar sede del usuario
+    if (currentUser.location_id) {
+        const loc = allLocations.find(l => l.id === currentUser.location_id);
+        if (loc) {
+            document.getElementById('user-location').textContent = `📍 ${loc.name}`;
+        }
+    }
+
     loadDashboard();
     loadUnreadCount();
 }
 
+// ── DATOS GLOBALES ────────────────────────────────────────────
+async function loadLocations() {
+    try {
+        const res = await apiFetch('/locations/');
+        allLocations = await res.json();
+
+        // Llenar selects de sede
+        const selects = ['t-location', 'u-location', 'filter-location'];
+        selects.forEach(id => {
+            const el = document.getElementById(id);
+            if (!el) return;
+            const defaultOpt = el.options[0];
+            el.innerHTML = '';
+            el.appendChild(defaultOpt);
+            allLocations.forEach(l => {
+                const opt = document.createElement('option');
+                opt.value = l.id;
+                opt.textContent = l.name;
+                el.appendChild(opt);
+            });
+        });
+    } catch (err) {
+        console.error('Error cargando sedes:', err);
+    }
+}
+
+async function loadTechnicians() {
+    if (currentUser.role !== 'admin') return;
+    try {
+        const res = await apiFetch('/users/');
+        const users = await res.json();
+        allTechnicians = users.filter(u => u.role === 'technician');
+
+        const sel = document.getElementById('edit-assigned');
+        if (!sel) return;
+        const defaultOpt = sel.options[0];
+        sel.innerHTML = '';
+        sel.appendChild(defaultOpt);
+        allTechnicians.forEach(t => {
+            const opt = document.createElement('option');
+            opt.value = t.id;
+            opt.textContent = t.full_name;
+            sel.appendChild(opt);
+        });
+    } catch (err) {}
+}
+
 // ── NAVEGACIÓN ────────────────────────────────────────────────
-function showSection(name) {
+function showSection(name, el) {
     document.querySelectorAll('.section').forEach(s => {
         s.classList.add('hidden');
         s.classList.remove('active');
@@ -85,12 +154,24 @@ function showSection(name) {
     document.getElementById(`section-${name}`).classList.add('active');
     document.getElementById('section-title').textContent = sectionTitle(name);
 
-    event.currentTarget.classList.add('active');
+    if (el) el.classList.add('active');
 
     if (name === 'dashboard') loadDashboard();
     if (name === 'tickets') loadTickets();
     if (name === 'incidents') loadIncidents();
     if (name === 'notifications') loadNotifications();
+    if (name === 'locations') loadLocationsList();
+    if (name === 'admin-users') loadUsers();
+    if (name === 'admin-tickets') loadAllTickets();
+}
+
+// ── FILTRO POR SEDE ───────────────────────────────────────────
+function applyLocationFilter() {
+    const section = document.querySelector('.section.active');
+    if (!section) return;
+    const id = section.id.replace('section-', '');
+    if (id === 'dashboard') loadDashboard();
+    if (id === 'admin-tickets') loadAllTickets();
 }
 
 // ── DASHBOARD ─────────────────────────────────────────────────
@@ -141,6 +222,10 @@ async function loadDashboard() {
                 <span>Total usuarios</span>
                 <span class="summary-value">${data.total_users}</span>
             </div>
+            <div class="summary-item">
+                <span>Sedes activas</span>
+                <span class="summary-value">${allLocations.length}</span>
+            </div>
         `;
     } catch (err) {
         console.error('Error cargando dashboard:', err);
@@ -161,26 +246,60 @@ async function loadTickets() {
             return;
         }
 
-        container.innerHTML = tickets.map(t => `
-            <div class="ticket-card priority-${t.priority}">
-                <div class="ticket-header">
-                    <span class="ticket-title">#${t.id} — ${t.title}</span>
-                </div>
-                <div class="ticket-meta">
-                    <span class="tag tag-status-${t.status}">${statusLabel(t.status)}</span>
-                    <span class="tag tag-priority-${t.priority}">${priorityLabel(t.priority)}</span>
-                    <span class="tag tag-category">${categoryLabel(t.category)}</span>
-                </div>
-                <div class="ticket-date">
-                    <i class="fas fa-user"></i> ${t.created_by.full_name} —
-                    <i class="fas fa-clock"></i> ${formatDate(t.created_at)}
-                    ${t.assigned_to ? `— <i class="fas fa-user-cog"></i> ${t.assigned_to.full_name}` : ''}
-                </div>
-            </div>
-        `).join('');
+        container.innerHTML = tickets.map(t => ticketCard(t, false)).join('');
     } catch (err) {
         container.innerHTML = '<p style="color:red">Error cargando tickets</p>';
     }
+}
+
+async function loadAllTickets() {
+    const container = document.getElementById('admin-tickets-list');
+    container.innerHTML = '<p style="color:#64748b">Cargando...</p>';
+
+    try {
+        const res = await apiFetch('/tickets/');
+        let tickets = await res.json();
+
+        const locationId = document.getElementById('filter-location')?.value;
+        if (locationId) {
+            tickets = tickets.filter(t => t.location_id == locationId);
+        }
+
+        if (tickets.length === 0) {
+            container.innerHTML = emptyState('ticket-alt', 'No hay tickets');
+            return;
+        }
+
+        container.innerHTML = tickets.map(t => ticketCard(t, true)).join('');
+    } catch (err) {
+        container.innerHTML = '<p style="color:red">Error cargando tickets</p>';
+    }
+}
+
+function ticketCard(t, showEdit) {
+    const loc = allLocations.find(l => l.id === t.location_id);
+    const locBadge = loc ? `<span class="tag tag-location"><i class="fas fa-map-marker-alt"></i> ${loc.name}</span>` : '';
+    const editBtn = showEdit ? `<button class="btn-edit" onclick="openEditTicket(${t.id}, '${t.status}', '${t.priority}', ${t.assigned_to_id || 'null'})"><i class="fas fa-edit"></i></button>` : '';
+
+    return `
+        <div class="ticket-card priority-${t.priority}">
+            <div class="ticket-header">
+                <span class="ticket-title">#${t.id} — ${t.title}</span>
+                ${editBtn}
+            </div>
+            <div class="ticket-meta">
+                <span class="tag tag-status-${t.status}">${statusLabel(t.status)}</span>
+                <span class="tag tag-priority-${t.priority}">${priorityLabel(t.priority)}</span>
+                <span class="tag tag-category">${categoryLabel(t.category)}</span>
+                ${locBadge}
+            </div>
+            <div class="ticket-date">
+                <i class="fas fa-user"></i> ${t.created_by.full_name} —
+                <i class="fas fa-clock"></i> ${formatDate(t.created_at)}
+                ${t.assigned_to ? `— <i class="fas fa-user-cog"></i> ${t.assigned_to.full_name}` : ''}
+            </div>
+        </div>
+    `;
 }
 
 function showCreateTicket() {
@@ -196,6 +315,7 @@ async function createTicket() {
     const description = document.getElementById('t-description').value;
     const category = document.getElementById('t-category').value;
     const priority = document.getElementById('t-priority').value;
+    const location_id = document.getElementById('t-location').value || null;
 
     if (!title || !description) {
         alert('El título y la descripción son obligatorios');
@@ -205,7 +325,7 @@ async function createTicket() {
     try {
         const res = await apiFetch('/tickets/', {
             method: 'POST',
-            body: JSON.stringify({ title, description, category, priority }),
+            body: JSON.stringify({ title, description, category, priority, location_id: location_id ? parseInt(location_id) : null }),
         });
 
         if (res.ok) {
@@ -215,6 +335,42 @@ async function createTicket() {
             loadTickets();
         } else {
             alert('Error al crear el ticket');
+        }
+    } catch (err) {
+        alert('Error de conexión');
+    }
+}
+
+// ── EDITAR TICKET (ADMIN) ─────────────────────────────────────
+function openEditTicket(id, status, priority, assignedId) {
+    editingTicketId = id;
+    document.getElementById('edit-status').value = status;
+    document.getElementById('edit-priority').value = priority;
+    document.getElementById('edit-assigned').value = assignedId || '';
+    document.getElementById('modal-ticket').classList.remove('hidden');
+    document.getElementById('modal-overlay').classList.remove('hidden');
+}
+
+async function saveTicketEdit() {
+    const status = document.getElementById('edit-status').value;
+    const priority = document.getElementById('edit-priority').value;
+    const assigned = document.getElementById('edit-assigned').value;
+
+    try {
+        const res = await apiFetch(`/tickets/${editingTicketId}`, {
+            method: 'PATCH',
+            body: JSON.stringify({
+                status,
+                priority,
+                assigned_to_id: assigned ? parseInt(assigned) : null,
+            }),
+        });
+
+        if (res.ok) {
+            closeAllModals();
+            loadAllTickets();
+        } else {
+            alert('Error al actualizar el ticket');
         }
     } catch (err) {
         alert('Error de conexión');
@@ -302,6 +458,193 @@ async function loadUnreadCount() {
     } catch (err) {}
 }
 
+// ── SEDES ─────────────────────────────────────────────────────
+async function loadLocationsList() {
+    const container = document.getElementById('locations-list');
+    container.innerHTML = '<p style="color:#64748b">Cargando...</p>';
+
+    try {
+        const res = await apiFetch('/locations/');
+        const locations = await res.json();
+
+        if (locations.length === 0) {
+            container.innerHTML = emptyState('map-marker-alt', 'No hay sedes registradas');
+            return;
+        }
+
+        container.innerHTML = locations.map(l => `
+            <div class="location-card ${l.is_active ? '' : 'inactive'}">
+                <div class="location-icon">
+                    <i class="fas fa-hospital-alt"></i>
+                </div>
+                <div class="location-info">
+                    <h4>${l.name}</h4>
+                    ${l.address ? `<p><i class="fas fa-map-marker-alt"></i> ${l.address}</p>` : ''}
+                    ${l.phone ? `<p><i class="fas fa-phone"></i> ${l.phone}</p>` : ''}
+                    ${l.description ? `<p><i class="fas fa-info-circle"></i> ${l.description}</p>` : ''}
+                </div>
+                <div class="location-status">
+                    <span class="tag ${l.is_active ? 'tag-status-resolved' : 'tag-status-closed'}">
+                        ${l.is_active ? 'Activa' : 'Inactiva'}
+                    </span>
+                </div>
+            </div>
+        `).join('');
+    } catch (err) {
+        container.innerHTML = '<p style="color:red">Error cargando sedes</p>';
+    }
+}
+
+function showCreateLocation() {
+    document.getElementById('create-location-form').classList.remove('hidden');
+}
+
+function hideCreateLocation() {
+    document.getElementById('create-location-form').classList.add('hidden');
+}
+
+async function createLocation() {
+    const name = document.getElementById('l-name').value;
+    const address = document.getElementById('l-address').value;
+    const phone = document.getElementById('l-phone').value;
+    const description = document.getElementById('l-description').value;
+
+    if (!name) {
+        alert('El nombre es obligatorio');
+        return;
+    }
+
+    try {
+        const res = await apiFetch('/locations/', {
+            method: 'POST',
+            body: JSON.stringify({ name, address, phone, description }),
+        });
+
+        if (res.ok) {
+            hideCreateLocation();
+            document.getElementById('l-name').value = '';
+            document.getElementById('l-address').value = '';
+            document.getElementById('l-phone').value = '';
+            document.getElementById('l-description').value = '';
+            await loadLocations();
+            loadLocationsList();
+        } else {
+            const err = await res.json();
+            alert(err.detail || 'Error al crear la sede');
+        }
+    } catch (err) {
+        alert('Error de conexión');
+    }
+}
+
+// ── ADMIN: USUARIOS ───────────────────────────────────────────
+async function loadUsers() {
+    const container = document.getElementById('users-list');
+    container.innerHTML = '<p style="color:#64748b">Cargando...</p>';
+
+    try {
+        const res = await apiFetch('/users/');
+        const users = await res.json();
+
+        container.innerHTML = `
+            <table class="admin-table">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Nombre</th>
+                        <th>Email</th>
+                        <th>Rol</th>
+                        <th>Sede</th>
+                        <th>Departamento</th>
+                        <th>Estado</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${users.map(u => {
+                        const loc = allLocations.find(l => l.id === u.location_id);
+                        return `
+                            <tr>
+                                <td>${u.id}</td>
+                                <td>${u.full_name}</td>
+                                <td>${u.email}</td>
+                                <td><span class="tag tag-role-${u.role}">${roleLabel(u.role)}</span></td>
+                                <td>${loc ? loc.name : '—'}</td>
+                                <td>${u.department || '—'}</td>
+                                <td>
+                                    <span class="tag ${u.is_active ? 'tag-status-resolved' : 'tag-status-closed'}">
+                                        ${u.is_active ? 'Activo' : 'Inactivo'}
+                                    </span>
+                                </td>
+                            </tr>
+                        `;
+                    }).join('')}
+                </tbody>
+            </table>
+        `;
+    } catch (err) {
+        container.innerHTML = '<p style="color:red">Error cargando usuarios</p>';
+    }
+}
+
+function showCreateUser() {
+    document.getElementById('create-user-form').classList.remove('hidden');
+}
+
+function hideCreateUser() {
+    document.getElementById('create-user-form').classList.add('hidden');
+}
+
+async function createUser() {
+    const full_name = document.getElementById('u-name').value;
+    const email = document.getElementById('u-email').value;
+    const password = document.getElementById('u-password').value;
+    const role = document.getElementById('u-role').value;
+    const location_id = document.getElementById('u-location').value || null;
+    const department = document.getElementById('u-department').value;
+    const phone = document.getElementById('u-phone').value;
+
+    if (!full_name || !email || !password) {
+        alert('Nombre, email y contraseña son obligatorios');
+        return;
+    }
+
+    try {
+        const res = await apiFetch('/auth/register', {
+            method: 'POST',
+            body: JSON.stringify({
+                full_name, email, password, role,
+                location_id: location_id ? parseInt(location_id) : null,
+                department, phone
+            }),
+        });
+
+        if (res.ok) {
+            hideCreateUser();
+            document.getElementById('u-name').value = '';
+            document.getElementById('u-email').value = '';
+            document.getElementById('u-password').value = '';
+            loadUsers();
+            await loadTechnicians();
+        } else {
+            const err = await res.json();
+            alert(err.detail || 'Error al crear el usuario');
+        }
+    } catch (err) {
+        alert('Error de conexión');
+    }
+}
+
+// ── MODALES ───────────────────────────────────────────────────
+function closeModal(id) {
+    document.getElementById(id).classList.add('hidden');
+    document.getElementById('modal-overlay').classList.add('hidden');
+}
+
+function closeAllModals() {
+    document.querySelectorAll('.modal').forEach(m => m.classList.add('hidden'));
+    document.getElementById('modal-overlay').classList.add('hidden');
+}
+
 // ── HELPERS ───────────────────────────────────────────────────
 async function apiFetch(path, options = {}) {
     return fetch(`${API}${path}`, {
@@ -336,17 +679,12 @@ function formatDate(dateStr) {
 }
 
 function statusLabel(s) {
-    const labels = {
-        open: 'Abierto', in_progress: 'En Progreso',
-        resolved: 'Resuelto', closed: 'Cerrado',
-    };
+    const labels = { open: 'Abierto', in_progress: 'En Progreso', resolved: 'Resuelto', closed: 'Cerrado' };
     return labels[s] || s;
 }
 
 function priorityLabel(p) {
-    const labels = {
-        low: 'Baja', medium: 'Media', high: 'Alta', critical: 'Crítica',
-    };
+    const labels = { low: 'Baja', medium: 'Media', high: 'Alta', critical: 'Crítica' };
     return labels[p] || p;
 }
 
@@ -360,16 +698,15 @@ function categoryLabel(c) {
 }
 
 function roleLabel(r) {
-    const labels = {
-        admin: 'Administrador', technician: 'Técnico', end_user: 'Usuario',
-    };
+    const labels = { admin: 'Administrador', technician: 'Técnico', end_user: 'Usuario' };
     return labels[r] || r;
 }
 
 function sectionTitle(s) {
     const titles = {
-        dashboard: 'Dashboard', tickets: 'Tickets',
-        incidents: 'Incidentes', notifications: 'Notificaciones',
+        dashboard: 'Dashboard', tickets: 'Tickets', incidents: 'Incidentes',
+        notifications: 'Notificaciones', locations: 'Sedes del HUS',
+        'admin-users': 'Gestión de Usuarios', 'admin-tickets': 'Gestión de Tickets',
     };
     return titles[s] || s;
 }
