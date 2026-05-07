@@ -5,6 +5,7 @@ from app.schemas.comment import CommentBase, CommentCreate, CommentUpdate, Comme
 from app.schemas.attachment import AttachmentResponse, AttachmentSummary
 from app.schemas.notification import NotificationResponse, NotificationUpdate
 from app.schemas.auth import LoginRequest, TokenResponse, TokenData
+from app.schemas.location import LocationCreate, LocationUpdate, LocationResponse, LocationSummary
 
 __all__ = [
     "UserBase", "UserCreate", "UserUpdate", "UserResponse", "UserSummary",
@@ -14,4 +15,5 @@ __all__ = [
     "AttachmentResponse", "AttachmentSummary",
     "NotificationResponse", "NotificationUpdate",
     "LoginRequest", "TokenResponse", "TokenData",
+    "LocationCreate", "LocationUpdate", "LocationResponse", "LocationSummary",
 ]

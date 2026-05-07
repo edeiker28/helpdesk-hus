@@ -4,16 +4,15 @@ from datetime import datetime
 from app.utils.enums import UserRole
 
 
-# ── Base ──────────────────────────────────────────────────────────
 class UserBase(BaseModel):
     full_name: str
     email: EmailStr
     role: UserRole = UserRole.END_USER
     department: Optional[str] = None
     phone: Optional[str] = None
+    location_id: Optional[int] = None
 
 
-# ── Crear usuario (entrada) ───────────────────────────────────────
 class UserCreate(UserBase):
     password: str
 
@@ -25,16 +24,15 @@ class UserCreate(UserBase):
         return v
 
 
-# ── Actualizar usuario (todos los campos opcionales) ──────────────
 class UserUpdate(BaseModel):
     full_name: Optional[str] = None
     department: Optional[str] = None
     phone: Optional[str] = None
     is_active: Optional[bool] = None
     role: Optional[UserRole] = None
+    location_id: Optional[int] = None
 
 
-# ── Respuesta (salida) — nunca incluye la contraseña ─────────────
 class UserResponse(UserBase):
     id: int
     is_active: bool
@@ -44,11 +42,11 @@ class UserResponse(UserBase):
     model_config = {"from_attributes": True}
 
 
-# ── Respuesta resumida (para listas) ─────────────────────────────
 class UserSummary(BaseModel):
     id: int
     full_name: str
     email: EmailStr
     role: UserRole
+    location_id: Optional[int] = None
 
     model_config = {"from_attributes": True}

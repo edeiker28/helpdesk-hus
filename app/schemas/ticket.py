@@ -14,6 +14,7 @@ class TicketBase(BaseModel):
 
 class TicketCreate(TicketBase):
     incident_id: Optional[int] = None
+    location_id: Optional[int] = None
 
 
 class TicketUpdate(BaseModel):
@@ -24,6 +25,7 @@ class TicketUpdate(BaseModel):
     status: Optional[TicketStatus] = None
     assigned_to_id: Optional[int] = None
     incident_id: Optional[int] = None
+    location_id: Optional[int] = None
 
 
 class TicketResponse(TicketBase):
@@ -32,6 +34,7 @@ class TicketResponse(TicketBase):
     created_by_id: int
     assigned_to_id: Optional[int] = None
     incident_id: Optional[int] = None
+    location_id: Optional[int] = None
     created_at: datetime
     updated_at: Optional[datetime] = None
     closed_at: Optional[datetime] = None
@@ -47,6 +50,7 @@ class TicketSummary(BaseModel):
     status: TicketStatus
     priority: TicketPriority
     category: TicketCategory
+    location_id: Optional[int] = None
     created_at: datetime
     created_by: UserSummary
     assigned_to: Optional[UserSummary] = None

@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Boolean, DateTime, Enum as SAEnum
+from sqlalchemy import Column, Integer, String, Boolean, DateTime, Enum as SAEnum, ForeignKey
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from app.database import Base
@@ -16,9 +16,15 @@ class User(Base):
     is_active = Column(Boolean, default=True, nullable=False)
     department = Column(String(100), nullable=True)
     phone = Column(String(20), nullable=True)
+
+    # Sede a la que pertenece el usuario
+    location_id = Column(Integer, ForeignKey("locations.id"), nullable=True)
+
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
+    # Relaciones
+    location = relationship("Location", back_populates="users")
     tickets_created = relationship(
         "Ticket",
         foreign_keys="Ticket.created_by_id",

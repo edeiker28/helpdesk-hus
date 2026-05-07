@@ -1,3 +1,4 @@
+from app.models.location import Location
 from app.models.user import User
 from app.models.incident import Incident
 from app.models.ticket import Ticket
@@ -6,6 +7,7 @@ from app.models.attachment import Attachment
 from app.models.notification import Notification
 
 __all__ = [
+    "Location",
     "User",
     "Incident",
     "Ticket",

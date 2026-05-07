@@ -1,6 +1,6 @@
-# app/utils/seed.py
 from sqlalchemy.orm import Session
 from app.database import SessionLocal
+from app.models.location import Location
 from app.models.user import User
 from app.models.ticket import Ticket
 from app.models.incident import Incident
@@ -18,12 +18,41 @@ logger = logging.getLogger(__name__)
 def seed_database():
     db: Session = SessionLocal()
     try:
-        # Si ya hay usuarios no hacemos nada
         if db.query(User).count() > 0:
             logger.info("⏭️  La base de datos ya tiene datos, omitiendo seed.")
             return
 
         logger.info("🌱 Iniciando seed de la base de datos...")
+
+        # ── Sedes ─────────────────────────────────────────────────
+        sede_central = Location(
+            name="HUS Central",
+            address="Calle 26 No. 18-67, Sincelejo",
+            phone="(095) 2804040",
+            description="Sede principal del Hospital Universitario de Sincelejo",
+        )
+        sede_norte = Location(
+            name="HUS Norte",
+            address="Av. El Palmar, Sincelejo",
+            phone="(095) 2804041",
+            description="Sede norte del HUS",
+        )
+        sede_sur = Location(
+            name="HUS Sur",
+            address="Carrera 15 No. 30-45, Sincelejo",
+            phone="(095) 2804042",
+            description="Sede sur del HUS",
+        )
+        sede_urgencias = Location(
+            name="HUS Urgencias",
+            address="Calle 26 No. 18-70, Sincelejo",
+            phone="(095) 2804043",
+            description="Centro de urgencias del HUS",
+        )
+
+        db.add_all([sede_central, sede_norte, sede_sur, sede_urgencias])
+        db.commit()
+        logger.info("✅ Sedes creadas")
 
         # ── Usuarios ──────────────────────────────────────────────
         admin = User(
@@ -33,6 +62,7 @@ def seed_database():
             role=UserRole.ADMIN,
             department="Sistemas",
             phone="3001234567",
+            location_id=sede_central.id,
         )
         tecnico1 = User(
             full_name="Carlos Pérez",
@@ -41,6 +71,7 @@ def seed_database():
             role=UserRole.TECHNICIAN,
             department="Soporte TI",
             phone="3017654321",
+            location_id=sede_central.id,
         )
         tecnico2 = User(
             full_name="María López",
@@ -49,6 +80,7 @@ def seed_database():
             role=UserRole.TECHNICIAN,
             department="Soporte TI",
             phone="3029876543",
+            location_id=sede_norte.id,
         )
         usuario1 = User(
             full_name="Juan García",
@@ -57,6 +89,7 @@ def seed_database():
             role=UserRole.END_USER,
             department="Urgencias",
             phone="3041234567",
+            location_id=sede_urgencias.id,
         )
         usuario2 = User(
             full_name="Ana Martínez",
@@ -65,6 +98,7 @@ def seed_database():
             role=UserRole.END_USER,
             department="Radiología",
             phone="3059876543",
+            location_id=sede_sur.id,
         )
 
         db.add_all([admin, tecnico1, tecnico2, usuario1, usuario2])
@@ -93,6 +127,7 @@ def seed_database():
             created_by_id=usuario1.id,
             assigned_to_id=tecnico1.id,
             incident_id=incidente.id,
+            location_id=sede_urgencias.id,
         )
         ticket2 = Ticket(
             title="No puedo acceder al sistema de historias clínicas",
@@ -101,6 +136,7 @@ def seed_database():
             priority=TicketPriority.CRITICAL,
             status=TicketStatus.OPEN,
             created_by_id=usuario2.id,
+            location_id=sede_sur.id,
         )
         ticket3 = Ticket(
             title="Impresora de radiología no imprime",
@@ -110,6 +146,7 @@ def seed_database():
             status=TicketStatus.RESOLVED,
             created_by_id=usuario2.id,
             assigned_to_id=tecnico2.id,
+            location_id=sede_sur.id,
         )
         ticket4 = Ticket(
             title="Actualización de antivirus requerida",
@@ -118,6 +155,7 @@ def seed_database():
             priority=TicketPriority.LOW,
             status=TicketStatus.OPEN,
             created_by_id=usuario1.id,
+            location_id=sede_central.id,
         )
 
         db.add_all([ticket1, ticket2, ticket3, ticket4])
@@ -150,6 +188,11 @@ def seed_database():
 
         logger.info("🎉 Seed completado exitosamente")
         logger.info("─" * 50)
+        logger.info("🏥 Sedes creadas:")
+        logger.info("   - HUS Central")
+        logger.info("   - HUS Norte")
+        logger.info("   - HUS Sur")
+        logger.info("   - HUS Urgencias")
         logger.info("👤 Usuarios de prueba:")
         logger.info("   Admin:    admin@hus.gov.co       / Admin1234")
         logger.info("   Técnico1: carlos.perez@hus.gov.co / Tecnico1234")
@@ -164,3 +207,9 @@ def seed_database():
         raise
     finally:
         db.close()
+
+
+if __name__ == "__main__":
+    import logging
+    logging.basicConfig(level=logging.INFO)
+    seed_database()
