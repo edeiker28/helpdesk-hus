@@ -1,4 +1,4 @@
-const API = 'http://localhost:8000/api/v1';
+const API = 'http://192.168.1.116:8000/api/v1';
 let token = localStorage.getItem('token') || null;
 let currentUser = JSON.parse(localStorage.getItem('currentUser') || 'null');
 
