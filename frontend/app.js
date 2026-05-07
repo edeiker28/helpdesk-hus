@@ -72,18 +72,33 @@ async function showApp() {
     document.getElementById('user-name').textContent = currentUser.full_name;
     document.getElementById('user-role').textContent = roleLabel(currentUser.role);
 
-    // Mostrar menú admin si es admin
-    if (currentUser.role === 'admin') {
+    const isAdmin = currentUser.role === 'admin';
+    const isTech = currentUser.role === 'technician';
+
+    // Admin ve todo el menú de administración
+    if (isAdmin) {
         document.getElementById('admin-nav').classList.remove('hidden');
+        document.getElementById('nav-users').classList.remove('hidden');
+        document.getElementById('nav-all-tickets').classList.remove('hidden');
         document.getElementById('btn-add-location').classList.remove('hidden');
         document.getElementById('location-filter-bar').classList.remove('hidden');
     }
 
-    // Cargar datos globales
+    // Técnico solo ve "Todos los tickets" en el menú
+    if (isTech) {
+        document.getElementById('admin-nav').classList.remove('hidden');
+        document.getElementById('nav-users').classList.add('hidden');
+        document.getElementById('nav-all-tickets').classList.remove('hidden');
+    }
+
+    // Usuario final no ve nada del menú admin
+    if (!isAdmin && !isTech) {
+        document.getElementById('admin-nav').classList.add('hidden');
+    }
+
     await loadLocations();
     await loadTechnicians();
 
-    // Mostrar sede del usuario
     if (currentUser.location_id) {
         const loc = allLocations.find(l => l.id === currentUser.location_id);
         if (loc) {
@@ -101,7 +116,6 @@ async function loadLocations() {
         const res = await apiFetch('/locations/');
         allLocations = await res.json();
 
-        // Llenar selects de sede
         const selects = ['t-location', 'u-location', 'filter-location'];
         selects.forEach(id => {
             const el = document.getElementById(id);
@@ -144,6 +158,21 @@ async function loadTechnicians() {
 
 // ── NAVEGACIÓN ────────────────────────────────────────────────
 function showSection(name, el) {
+    const isAdmin = currentUser.role === 'admin';
+    const isTech = currentUser.role === 'technician';
+
+    // Solo admin puede ver gestión de usuarios
+    if (name === 'admin-users' && !isAdmin) {
+        alert('Solo los administradores pueden gestionar usuarios');
+        return;
+    }
+
+    // Solo admin y técnico pueden ver todos los tickets
+    if (name === 'admin-tickets' && !isAdmin && !isTech) {
+        alert('No tienes permiso para acceder a esta sección');
+        return;
+    }
+
     document.querySelectorAll('.section').forEach(s => {
         s.classList.add('hidden');
         s.classList.remove('active');
@@ -177,6 +206,59 @@ function applyLocationFilter() {
 // ── DASHBOARD ─────────────────────────────────────────────────
 async function loadDashboard() {
     try {
+        if (currentUser.role === 'end_user') {
+            const res = await apiFetch('/tickets/');
+            const tickets = await res.json();
+
+            const open = tickets.filter(t => t.status === 'open').length;
+            const inProgress = tickets.filter(t => t.status === 'in_progress').length;
+            const resolved = tickets.filter(t => t.status === 'resolved').length;
+
+            document.getElementById('m-open').textContent = open;
+            document.getElementById('m-progress').textContent = inProgress;
+            document.getElementById('m-resolved').textContent = resolved;
+            document.getElementById('m-incidents').textContent = '—';
+
+            document.getElementById('priority-list').innerHTML = `
+                <div class="priority-item">
+                    <span class="priority-label"><span class="dot dot-critical"></span> Crítica</span>
+                    <span class="priority-count">${tickets.filter(t => t.priority === 'critical').length}</span>
+                </div>
+                <div class="priority-item">
+                    <span class="priority-label"><span class="dot dot-high"></span> Alta</span>
+                    <span class="priority-count">${tickets.filter(t => t.priority === 'high').length}</span>
+                </div>
+                <div class="priority-item">
+                    <span class="priority-label"><span class="dot dot-medium"></span> Media</span>
+                    <span class="priority-count">${tickets.filter(t => t.priority === 'medium').length}</span>
+                </div>
+                <div class="priority-item">
+                    <span class="priority-label"><span class="dot dot-low"></span> Baja</span>
+                    <span class="priority-count">${tickets.filter(t => t.priority === 'low').length}</span>
+                </div>
+            `;
+
+            document.getElementById('summary-list').innerHTML = `
+                <div class="summary-item">
+                    <span>Mis tickets totales</span>
+                    <span class="summary-value">${tickets.length}</span>
+                </div>
+                <div class="summary-item">
+                    <span>Abiertos</span>
+                    <span class="summary-value">${open}</span>
+                </div>
+                <div class="summary-item">
+                    <span>En progreso</span>
+                    <span class="summary-value">${inProgress}</span>
+                </div>
+                <div class="summary-item">
+                    <span>Resueltos</span>
+                    <span class="summary-value">${resolved}</span>
+                </div>
+            `;
+            return;
+        }
+
         const res = await apiFetch('/dashboard/');
         const data = await res.json();
 
@@ -279,7 +361,8 @@ async function loadAllTickets() {
 function ticketCard(t, showEdit) {
     const loc = allLocations.find(l => l.id === t.location_id);
     const locBadge = loc ? `<span class="tag tag-location"><i class="fas fa-map-marker-alt"></i> ${loc.name}</span>` : '';
-    const editBtn = showEdit ? `<button class="btn-edit" onclick="openEditTicket(${t.id}, '${t.status}', '${t.priority}', ${t.assigned_to_id || 'null'})"><i class="fas fa-edit"></i></button>` : '';
+    const canEdit = showEdit && (currentUser.role === 'admin' || currentUser.role === 'technician');
+    const editBtn = canEdit ? `<button class="btn-edit" onclick="openEditTicket(${t.id}, '${t.status}', '${t.priority}', ${t.assigned_to_id || 'null'})"><i class="fas fa-edit"></i></button>` : '';
 
     return `
         <div class="ticket-card priority-${t.priority}">
@@ -325,7 +408,10 @@ async function createTicket() {
     try {
         const res = await apiFetch('/tickets/', {
             method: 'POST',
-            body: JSON.stringify({ title, description, category, priority, location_id: location_id ? parseInt(location_id) : null }),
+            body: JSON.stringify({
+                title, description, category, priority,
+                location_id: location_id ? parseInt(location_id) : null
+            }),
         });
 
         if (res.ok) {
@@ -341,7 +427,7 @@ async function createTicket() {
     }
 }
 
-// ── EDITAR TICKET (ADMIN) ─────────────────────────────────────
+// ── EDITAR TICKET ─────────────────────────────────────────────
 function openEditTicket(id, status, priority, assignedId) {
     editingTicketId = id;
     document.getElementById('edit-status').value = status;
@@ -496,6 +582,10 @@ async function loadLocationsList() {
 }
 
 function showCreateLocation() {
+    if (currentUser.role !== 'admin') {
+        alert('Solo los administradores pueden crear sedes');
+        return;
+    }
     document.getElementById('create-location-form').classList.remove('hidden');
 }
 

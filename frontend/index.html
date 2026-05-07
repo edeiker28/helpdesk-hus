@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,6 +8,7 @@
     <link rel="stylesheet" href="styles.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 </head>
+
 <body>
 
     <!-- ── LOGIN ─────────────────────────────────────────────── -->
@@ -63,10 +65,10 @@
                 <!-- Solo visible para admin -->
                 <div id="admin-nav" class="hidden">
                     <div class="nav-divider">Administración</div>
-                    <a href="#" class="nav-item" onclick="showSection('admin-users', this)">
+                    <a href="#" class="nav-item" id="nav-users" onclick="showSection('admin-users', this)">
                         <i class="fas fa-users"></i> Usuarios
                     </a>
-                    <a href="#" class="nav-item" onclick="showSection('admin-tickets', this)">
+                    <a href="#" class="nav-item" id="nav-all-tickets" onclick="showSection('admin-tickets', this)">
                         <i class="fas fa-tasks"></i> Todos los Tickets
                     </a>
                 </div>
@@ -372,4 +374,5 @@
 
     <script src="app.js"></script>
 </body>
+
 </html>
