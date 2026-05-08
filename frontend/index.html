@@ -563,6 +563,80 @@
         </div>
     </div>
 
+
+
+
+<div id="modal-ticket-detail" class="modal modal-large hidden">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3 id="detail-title">Detalle del Ticket</h3>
+            <button onclick="closeModal('modal-ticket-detail')">&times;</button>
+        </div>
+
+        <!-- Info principal -->
+        <div class="detail-grid">
+            <div class="detail-main">
+                <div class="detail-description" id="detail-description"></div>
+
+                <div class="detail-meta-grid">
+                    <div class="detail-meta-item">
+                        <span class="detail-meta-label">Estado</span>
+                        <span id="detail-status"></span>
+                    </div>
+                    <div class="detail-meta-item">
+                        <span class="detail-meta-label">Prioridad</span>
+                        <span id="detail-priority"></span>
+                    </div>
+                    <div class="detail-meta-item">
+                        <span class="detail-meta-label">Categoría</span>
+                        <span id="detail-category"></span>
+                    </div>
+                    <div class="detail-meta-item">
+                        <span class="detail-meta-label">Sede</span>
+                        <span id="detail-location"></span>
+                    </div>
+                    <div class="detail-meta-item">
+                        <span class="detail-meta-label">Creado por</span>
+                        <span id="detail-created-by"></span>
+                    </div>
+                    <div class="detail-meta-item">
+                        <span class="detail-meta-label">Asignado a</span>
+                        <span id="detail-assigned"></span>
+                    </div>
+                    <div class="detail-meta-item">
+                        <span class="detail-meta-label">Fecha creación</span>
+                        <span id="detail-created-at"></span>
+                    </div>
+                    <div class="detail-meta-item">
+                        <span class="detail-meta-label">SLA</span>
+                        <span id="detail-sla"></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Comentarios -->
+        <div class="detail-comments">
+            <h4><i class="fas fa-comments"></i> Comentarios</h4>
+            <div id="detail-comments-list" class="comments-list"></div>
+
+            <!-- Agregar comentario -->
+            <div class="add-comment">
+                <textarea id="new-comment" placeholder="Escribe un comentario..."></textarea>
+                <div class="comment-actions">
+                    <label id="internal-comment-label" class="internal-toggle hidden">
+                        <input type="checkbox" id="is-internal">
+                        <span>Nota interna (solo técnicos)</span>
+                    </label>
+                    <button class="btn btn-primary" onclick="submitComment()">
+                        <i class="fas fa-paper-plane"></i> Comentar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
     <!-- Modal editar ticket -->
     <div id="modal-ticket" class="modal hidden">
         <div class="modal-content">

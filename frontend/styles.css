@@ -730,3 +730,175 @@ body { background: var(--bg); color: var(--text); }
 .report-content {
     min-height: 300px;
 }
+
+/* ── MODAL GRANDE ────────────────────────────────────────────── */
+.modal-large {
+    max-width: 750px;
+    width: 95%;
+    max-height: 90vh;
+    overflow-y: auto;
+}
+
+/* ── DETALLE DEL TICKET ──────────────────────────────────────── */
+.detail-description {
+    background: var(--bg);
+    border-radius: 8px;
+    padding: 1rem;
+    margin-bottom: 1.25rem;
+    font-size: 0.95rem;
+    line-height: 1.6;
+}
+
+.detail-meta-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.75rem;
+    margin-bottom: 1.5rem;
+}
+
+.detail-meta-item {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+}
+
+.detail-meta-label {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--text-light);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+/* ── COMENTARIOS ─────────────────────────────────────────────── */
+.detail-comments {
+    border-top: 1px solid var(--border);
+    padding-top: 1.25rem;
+    margin-top: 0.5rem;
+}
+
+.detail-comments h4 {
+    font-size: 0.95rem;
+    font-weight: 700;
+    margin-bottom: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: var(--text);
+}
+
+.comments-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    margin-bottom: 1.25rem;
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.comment-card {
+    background: var(--bg);
+    border-radius: 8px;
+    padding: 0.85rem 1rem;
+    border-left: 3px solid var(--border);
+}
+
+.comment-card.internal {
+    border-left-color: #d97706;
+    background: #fffbeb;
+}
+
+.comment-card.own {
+    border-left-color: var(--primary);
+    background: #eff6ff;
+}
+
+.comment-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.5rem;
+}
+
+.comment-author {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.85rem;
+}
+
+.comment-author i { color: var(--text-light); }
+
+.comment-date {
+    font-size: 0.75rem;
+    color: var(--text-light);
+}
+
+.comment-body {
+    font-size: 0.9rem;
+    color: var(--text);
+    line-height: 1.5;
+}
+
+.empty-comments {
+    text-align: center;
+    padding: 2rem;
+    color: var(--text-light);
+}
+
+.empty-comments i {
+    font-size: 2rem;
+    opacity: 0.3;
+    display: block;
+    margin-bottom: 0.5rem;
+}
+
+/* ── AGREGAR COMENTARIO ──────────────────────────────────────── */
+.add-comment {
+    border-top: 1px solid var(--border);
+    padding-top: 1rem;
+}
+
+.add-comment textarea {
+    width: 100%;
+    padding: 0.75rem 1rem;
+    border: 1.5px solid var(--border);
+    border-radius: 8px;
+    font-size: 0.9rem;
+    resize: vertical;
+    min-height: 80px;
+    margin-bottom: 0.75rem;
+    font-family: inherit;
+    color: var(--text);
+}
+
+.add-comment textarea:focus {
+    outline: none;
+    border-color: var(--primary);
+}
+
+.comment-actions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.internal-toggle {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.85rem;
+    color: var(--text-light);
+    cursor: pointer;
+}
+
+.internal-toggle input {
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+}
+
+/* Hacer clickeable la tarjeta de ticket */
+.ticket-card {
+    cursor: pointer;
+}

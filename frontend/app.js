@@ -336,7 +336,7 @@ function ticketCard(t, showEdit) {
     const canEdit = showEdit && (currentUser.role === 'admin' || currentUser.role === 'technician');
     const editBtn = canEdit ? `<button class="btn-edit" onclick="openEditTicket(${t.id}, '${t.status}', '${t.priority}', ${t.assigned_to_id || 'null'})"><i class="fas fa-edit"></i></button>` : '';
     return `
-        <div class="ticket-card priority-${t.priority}">
+          <div class="ticket-card priority-${t.priority}" onclick="openTicketDetail(${t.id})">
             <div class="ticket-header">
                 <span class="ticket-title">#${t.id} — ${t.title}</span>
                 ${editBtn}
@@ -1255,5 +1255,154 @@ async function exportCSV(type) {
         document.body.removeChild(a);
     } catch (err) {
         alert('Error al exportar');
+    }
+}
+
+
+// ── DETALLE DE TICKET ─────────────────────────────────────────
+let currentTicketId = null;
+
+async function openTicketDetail(ticketId) {
+    currentTicketId = ticketId;
+
+    document.getElementById('modal-ticket-detail').classList.remove('hidden');
+    document.getElementById('modal-overlay').classList.remove('hidden');
+    document.getElementById('detail-comments-list').innerHTML = '<p style="color:#64748b">Cargando...</p>';
+
+    try {
+        // Cargar ticket
+        const ticketRes = await apiFetch(`/tickets/${ticketId}`);
+        const ticket = await ticketRes.json();
+
+        // Título
+        document.getElementById('detail-title').textContent = `#${ticket.id} — ${ticket.title}`;
+
+        // Descripción
+        document.getElementById('detail-description').innerHTML = `
+            <p style="color:#475569; line-height:1.6;">${ticket.description}</p>
+        `;
+
+        // Metadata
+        document.getElementById('detail-status').innerHTML =
+            `<span class="tag tag-status-${ticket.status}">${statusLabel(ticket.status)}</span>`;
+        document.getElementById('detail-priority').innerHTML =
+            `<span class="tag tag-priority-${ticket.priority}">${priorityLabel(ticket.priority)}</span>`;
+        document.getElementById('detail-category').innerHTML =
+            `<span class="tag tag-category">${categoryLabel(ticket.category)}</span>`;
+
+        const loc = allLocations.find(l => l.id === ticket.location_id);
+        document.getElementById('detail-location').textContent = loc ? loc.name : '—';
+        document.getElementById('detail-created-by').textContent = ticket.created_by.full_name;
+        document.getElementById('detail-assigned').textContent =
+            ticket.assigned_to ? ticket.assigned_to.full_name : 'Sin asignar';
+        document.getElementById('detail-created-at').textContent = formatDate(ticket.created_at);
+
+        // SLA
+        const SLA_HOURS = { critical: 1, high: 4, medium: 8, low: 24 };
+        const slaHours = SLA_HOURS[ticket.priority] || 8;
+        const now = new Date();
+        const created = new Date(ticket.created_at);
+        const elapsed = (now - created) / (1000 * 60 * 60);
+        const remaining = slaHours - elapsed;
+        const pct = Math.min((elapsed / slaHours) * 100, 100);
+
+        if (ticket.status === 'resolved' || ticket.status === 'closed') {
+            document.getElementById('detail-sla').innerHTML =
+                `<span class="sla-badge sla-completed"><i class="fas fa-check"></i> Completado</span>`;
+        } else if (elapsed > slaHours) {
+            document.getElementById('detail-sla').innerHTML =
+                `<span class="sla-badge sla-breached"><i class="fas fa-exclamation-circle"></i> Vencido ${formatHours(elapsed - slaHours)}</span>`;
+        } else if (pct >= 75) {
+            document.getElementById('detail-sla').innerHTML =
+                `<span class="sla-badge sla-warning"><i class="fas fa-clock"></i> Vence en ${formatHours(remaining)}</span>`;
+        } else {
+            document.getElementById('detail-sla').innerHTML =
+                `<span class="sla-badge sla-ok"><i class="fas fa-check"></i> Vence en ${formatHours(remaining)}</span>`;
+        }
+
+        // Mostrar toggle de nota interna solo para admin y técnico
+        const isStaff = currentUser.role === 'admin' || currentUser.role === 'technician';
+        const internalLabel = document.getElementById('internal-comment-label');
+        if (isStaff) {
+            internalLabel.classList.remove('hidden');
+        } else {
+            internalLabel.classList.add('hidden');
+        }
+
+        // Cargar comentarios
+        await loadComments(ticketId);
+
+    } catch (err) {
+        console.error('Error cargando ticket:', err);
+    }
+}
+
+async function loadComments(ticketId) {
+    const container = document.getElementById('detail-comments-list');
+
+    try {
+        const res = await apiFetch(`/comments/ticket/${ticketId}`);
+        const comments = await res.json();
+
+        if (comments.length === 0) {
+            container.innerHTML = `
+                <div class="empty-comments">
+                    <i class="fas fa-comments"></i>
+                    <p>No hay comentarios aún. ¡Sé el primero!</p>
+                </div>
+            `;
+            return;
+        }
+
+        container.innerHTML = comments.map(c => {
+            const isOwn = c.author_id === currentUser.id;
+            return `
+                <div class="comment-card ${c.is_internal ? 'internal' : ''} ${isOwn ? 'own' : ''}">
+                    <div class="comment-header">
+                        <div class="comment-author">
+                            <i class="fas fa-user-circle"></i>
+                            <strong>${c.author.full_name}</strong>
+                            ${c.is_internal ? '<span class="tag" style="background:#fef3c7;color:#92400e;font-size:0.7rem;">Nota interna</span>' : ''}
+                        </div>
+                        <span class="comment-date">${formatDate(c.created_at)}</span>
+                    </div>
+                    <div class="comment-body">${c.body}</div>
+                </div>
+            `;
+        }).join('');
+
+    } catch (err) {
+        container.innerHTML = '<p style="color:red">Error cargando comentarios</p>';
+    }
+}
+
+async function submitComment() {
+    const body = document.getElementById('new-comment').value.trim();
+    const isInternal = document.getElementById('is-internal').checked;
+
+    if (!body) {
+        alert('Escribe un comentario primero');
+        return;
+    }
+
+    try {
+        const res = await apiFetch('/comments/', {
+            method: 'POST',
+            body: JSON.stringify({
+                body,
+                is_internal: isInternal,
+                ticket_id: currentTicketId,
+            }),
+        });
+
+        if (res.ok) {
+            document.getElementById('new-comment').value = '';
+            document.getElementById('is-internal').checked = false;
+            await loadComments(currentTicketId);
+        } else {
+            alert('Error al enviar el comentario');
+        }
+    } catch (err) {
+        alert('Error de conexión');
     }
 }
