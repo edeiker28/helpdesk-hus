@@ -2,42 +2,37 @@ from pydantic_settings import BaseSettings
 from typing import List
 
 
-
 class Settings(BaseSettings):
-
 
     DB_HOST: str = "localhost"
     DB_PORT: int = 3306
-    DB_USER: str
-    DB_PASSWORD: str
-    DB_NAME: str
+    DB_USER: str = "root"
+    DB_PASSWORD: str = "root"
+    DB_NAME: str = "helpdesk_db"
 
-
-    SECRET_KEY: str
+    SECRET_KEY: str = "changeme"
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 480
-
 
     APP_NAME: str = "HelpDesk HUS"
     APP_VERSION: str = "1.0.0"
     DEBUG: bool = False
-    ALLOWED_ORIGINS: str = "http://localhost:3000"
-
+    ALLOWED_ORIGINS: str = "*"
 
     UPLOAD_DIR: str = "app/uploads"
     MAX_UPLOAD_SIZE_MB: int = 10
     ALLOWED_EXTENSIONS: str = "pdf,png,jpg,jpeg,gif,webp,doc,docx,xls,xlsx,txt"
 
-    # Railway provee DATABASE_URL directamente
     DATABASE_URL_OVERRIDE: str = ""
 
     @property
     def DATABASE_URL(self) -> str:
         if self.DATABASE_URL_OVERRIDE:
-            # Railway usa mysql:// en lugar de mysql+pymysql://
             url = self.DATABASE_URL_OVERRIDE
             if url.startswith("mysql://"):
                 url = url.replace("mysql://", "mysql+pymysql://", 1)
+            if url.startswith("mysql+pymysql://") and "charset" not in url:
+                url += "?charset=utf8mb4"
             return url
         return (
             f"mysql+pymysql://{self.DB_USER}:{self.DB_PASSWORD}"

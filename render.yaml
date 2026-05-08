@@ -1,0 +1,19 @@
+services:
+  - type: web
+    name: helpdesk-hus
+    runtime: docker
+    healthCheckPath: /health
+    envVars:
+      - key: DATABASE_URL_OVERRIDE
+        fromDatabase:
+          name: helpdesk-db
+          property: connectionString
+      - key: SECRET_KEY
+        value: c07cc45ba2a27efff765c9fcf3dd2ac391078681af4e3bc617aee8caab2b2ebb
+      - key: ALLOWED_ORIGINS
+        value: "*"
+
+databases:
+  - name: helpdesk-db
+    databaseName: helpdesk_db
+    user: helpdesk_user
