@@ -4,8 +4,10 @@ from app.database import get_db
 from app.models.ticket import Ticket
 from app.models.incident import Incident
 from app.models.user import User
+from app.models.asset import Asset
 from app.core.dependencies import require_technician_or_admin
-from app.utils.enums import TicketStatus, TicketPriority, IncidentStatus
+from app.utils.enums import TicketStatus, TicketPriority, IncidentStatus, AssetStatus
+from app.services.sla_service import get_sla_info, get_sla_summary
 
 router = APIRouter()
 
@@ -33,6 +35,14 @@ def get_dashboard(
     incidents_closed = db.query(Incident).filter(Incident.status == IncidentStatus.CLOSED).count()
 
     total_users = db.query(User).count()
+    total_assets = db.query(Asset).count()
+    active_assets = db.query(Asset).filter(Asset.status == AssetStatus.ACTIVE).count()
+
+    # SLA Summary
+    active_tickets = db.query(Ticket).filter(
+        Ticket.status.in_([TicketStatus.OPEN, TicketStatus.IN_PROGRESS])
+    ).all()
+    sla_summary = get_sla_summary(active_tickets)
 
     return {
         "tickets": {
@@ -50,4 +60,45 @@ def get_dashboard(
             "closed": incidents_closed,
         },
         "total_users": total_users,
+        "assets": {
+            "total": total_assets,
+            "active": active_assets,
+        },
+        "sla": sla_summary,
+    }
+
+
+@router.get("/sla")
+def get_sla_dashboard(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_technician_or_admin),
+):
+    """Endpoint específico para ver el estado SLA de todos los tickets activos."""
+    active_tickets = db.query(Ticket).filter(
+        Ticket.status.in_([TicketStatus.OPEN, TicketStatus.IN_PROGRESS])
+    ).all()
+
+    tickets_with_sla = []
+    for ticket in active_tickets:
+        sla_info = get_sla_info(ticket)
+        tickets_with_sla.append({
+            "id": ticket.id,
+            "title": ticket.title,
+            "priority": ticket.priority.value,
+            "status": ticket.status.value,
+            "created_at": ticket.created_at.isoformat(),
+            "assigned_to_id": ticket.assigned_to_id,
+            "location_id": ticket.location_id,
+            "sla": sla_info,
+        })
+
+    # Ordenar por estado SLA: primero los vencidos, luego warnings, luego ok
+    order = {"breached": 0, "warning": 1, "ok": 2, "completed": 3}
+    tickets_with_sla.sort(key=lambda x: order.get(x["sla"]["status"], 99))
+
+    summary = get_sla_summary(active_tickets)
+
+    return {
+        "summary": summary,
+        "tickets": tickets_with_sla,
     }

@@ -1,4 +1,4 @@
-const API = 'http://192.168.1.116:8000/api/v1';
+const API = 'http://192.168.1.39:8000/api/v1';
 let token = localStorage.getItem('token') || null;
 let currentUser = JSON.parse(localStorage.getItem('currentUser') || 'null');
 let allLocations = [];
@@ -9,7 +9,9 @@ let editingTicketId = null;
 window.onload = () => {
     if (token && currentUser) {
         showApp();
+        
     }
+    
 };
 
 // ── AUTH ──────────────────────────────────────────────────────
@@ -104,6 +106,9 @@ async function showApp() {
 
     loadDashboard();
     loadUnreadCount();
+    if (currentUser.role !== 'end_user') {
+        loadSLABadge();
+    }
 }
 
 // ── DATOS GLOBALES ────────────────────────────────────────────
@@ -201,6 +206,9 @@ function showSection(name, el) {
     if (name === 'inventory') loadInventory();
     if (name === 'admin-users') loadUsers();
     if (name === 'admin-tickets') loadAllTickets();
+    if (name === 'inventory') loadInventory();
+    if (name === 'sla') loadSLA();  // ← agrega esta línea
+    if (name === 'admin-users') loadUsers();
 }
 
 function applyLocationFilter() {
@@ -771,4 +779,129 @@ function assetIcon(t) {
 }
 function sectionTitle(s) {
     return { dashboard: 'Dashboard', tickets: 'Tickets', incidents: 'Incidentes', notifications: 'Notificaciones', locations: 'Sedes del HUS', inventory: 'Inventario de Activos', 'admin-users': 'Gestión de Usuarios', 'admin-tickets': 'Gestión de Tickets' }[s] || s;
+}
+
+// ── SLA ───────────────────────────────────────────────────────
+async function loadSLA() {
+    const container = document.getElementById('sla-list');
+    container.innerHTML = '<p style="color:#64748b">Cargando...</p>';
+
+    try {
+        const res = await apiFetch('/dashboard/sla');
+        const data = await res.json();
+
+        // Actualizar métricas
+        document.getElementById('sla-compliance').textContent = `${data.summary.compliance_rate}%`;
+        document.getElementById('sla-ok').textContent = data.summary.ok;
+        document.getElementById('sla-warning').textContent = data.summary.warning;
+        document.getElementById('sla-breached').textContent = data.summary.breached;
+
+        // Actualizar badge en sidebar
+        const badge = document.getElementById('sla-breach-badge');
+        if (data.summary.breached > 0) {
+            badge.textContent = data.summary.breached;
+            badge.classList.remove('hidden');
+        } else {
+            badge.classList.add('hidden');
+        }
+
+        if (data.tickets.length === 0) {
+            container.innerHTML = emptyState('check-circle', 'No hay tickets activos');
+            return;
+        }
+
+        container.innerHTML = data.tickets.map(t => {
+            const sla = t.sla;
+            const loc = allLocations.find(l => l.id === t.location_id);
+
+            let timeText = '';
+            let timeClass = '';
+
+            if (sla.status === 'breached') {
+                timeText = `Vencido hace ${formatHours(sla.breached_hours)}`;
+                timeClass = 'time-breached';
+            } else if (sla.status === 'warning') {
+                timeText = `Vence en ${formatHours(sla.remaining_hours)}`;
+                timeClass = 'time-warning';
+            } else {
+                timeText = `Vence en ${formatHours(sla.remaining_hours)}`;
+                timeClass = 'time-ok';
+            }
+
+            const barWidth = Math.min(sla.percentage_used, 100);
+
+            return `
+                <div class="sla-ticket-row ${sla.status}">
+                    <div class="sla-ticket-info">
+                        <div class="sla-ticket-title">
+                            #${t.id} — ${t.title}
+                        </div>
+                        <div class="sla-ticket-meta">
+                            <span class="tag tag-priority-${t.priority}" style="font-size:0.7rem">${priorityLabel(t.priority)}</span>
+                            <span class="tag tag-status-${t.status}" style="font-size:0.7rem">${statusLabel(t.status)}</span>
+                            ${loc ? `<span style="font-size:0.75rem; color:#64748b"><i class="fas fa-map-marker-alt"></i> ${loc.name}</span>` : ''}
+                        </div>
+                        <div class="sla-bar-container">
+                            <div class="sla-bar ${sla.status}" style="width: ${barWidth}%"></div>
+                        </div>
+                    </div>
+                    <div class="sla-ticket-time">
+                        <div class="time-value ${timeClass}">${timeText}</div>
+                        <div class="time-label">SLA: ${sla.sla_hours}h</div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+    } catch (err) {
+        container.innerHTML = '<p style="color:red">Error cargando SLA</p>';
+    }
+}
+
+function formatHours(hours) {
+    if (hours < 0) hours = Math.abs(hours);
+    if (hours < 1) {
+        const minutes = Math.round(hours * 60);
+        return `${minutes}min`;
+    }
+    const h = Math.floor(hours);
+    const m = Math.round((hours - h) * 60);
+    if (m === 0) return `${h}h`;
+    return `${h}h ${m}min`;
+}
+
+// Cargar SLA badge al iniciar
+async function loadSLABadge() {
+    try {
+        const res = await apiFetch('/dashboard/sla');
+        const data = await res.json();
+        const badge = document.getElementById('sla-breach-badge');
+        if (data.summary.breached > 0) {
+            badge.textContent = data.summary.breached;
+            badge.classList.remove('hidden');
+        } else {
+            badge.classList.add('hidden');
+        }
+    } catch (err) {}
+}
+
+// Agregar SLA badge a cada ticket en la lista
+function getSLABadge(createdAt, priority) {
+    const SLA_HOURS = { critical: 1, high: 4, medium: 8, low: 24 };
+    const slaHours = SLA_HOURS[priority] || 8;
+    const now = new Date();
+    const created = new Date(createdAt);
+    const elapsedHours = (now - created) / (1000 * 60 * 60);
+    const percentage = (elapsedHours / slaHours) * 100;
+
+    if (percentage >= 100) {
+        const breached = elapsedHours - slaHours;
+        return `<span class="sla-badge sla-breached"><i class="fas fa-exclamation-circle"></i> Vencido ${formatHours(breached)}</span>`;
+    } else if (percentage >= 75) {
+        const remaining = slaHours - elapsedHours;
+        return `<span class="sla-badge sla-warning"><i class="fas fa-clock"></i> ${formatHours(remaining)}</span>`;
+    } else {
+        const remaining = slaHours - elapsedHours;
+        return `<span class="sla-badge sla-ok"><i class="fas fa-check"></i> ${formatHours(remaining)}</span>`;
+    }
 }

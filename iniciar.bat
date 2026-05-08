@@ -21,5 +21,5 @@ echo 🌐 Iniciando frontend...
 start cmd /k "cd /d %~dp0frontend && python -m http.server 3000"
 
 echo ✅ HelpDesk HUS está corriendo!
-echo 📱 Accede desde: http://192.168.1.116:3000
+echo 📱 Accede desde: http://192.168.1.39:3000
 pause

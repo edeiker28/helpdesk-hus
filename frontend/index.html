@@ -64,6 +64,10 @@
                 <a href="#" class="nav-item" id="nav-inventory" onclick="showSection('inventory', this)">
                     <i class="fas fa-boxes"></i> Inventario
                 </a>
+                <a href="#" class="nav-item" onclick="showSection('sla', this)">
+                    <i class="fas fa-clock"></i> SLA
+                    <span id="sla-breach-badge" class="nav-sla-badge hidden">0</span>
+                </a>
 
                 <!-- Solo visible para admin y técnico -->
                 <div id="admin-nav" class="hidden">
@@ -270,11 +274,7 @@
                         <i class="fas fa-plus"></i> Nuevo Activo
                     </button>
                 </div>
-
-                <!-- Stats de inventario -->
                 <div id="inventory-stats" class="metrics-grid" style="grid-template-columns: repeat(5,1fr); margin-bottom:1.5rem;"></div>
-
-                <!-- Filtros -->
                 <div class="filter-bar card" style="margin-bottom:1rem; padding:1rem;">
                     <div class="form-row">
                         <div class="form-group" style="margin-bottom:0">
@@ -312,8 +312,6 @@
                         </div>
                     </div>
                 </div>
-
-                <!-- Formulario crear activo -->
                 <div id="create-asset-form" class="card hidden">
                     <h3>Registrar Nuevo Activo</h3>
                     <div class="form-row">
@@ -396,8 +394,63 @@
                         </button>
                     </div>
                 </div>
-
                 <div id="inventory-list" class="inventory-grid"></div>
+            </div>
+
+            <!-- SLA Monitor -->
+            <div id="section-sla" class="section hidden">
+                <div class="section-header">
+                    <h3>Monitor de SLA</h3>
+                    <button class="btn btn-secondary" onclick="loadSLA()">
+                        <i class="fas fa-sync-alt"></i> Actualizar
+                    </button>
+                </div>
+                <div class="sla-panel">
+                    <h3><i class="fas fa-chart-pie"></i> Resumen de Cumplimiento</h3>
+                    <div class="sla-metrics">
+                        <div class="sla-metric compliance">
+                            <span class="value" id="sla-compliance">--%</span>
+                            <span class="label">Cumplimiento</span>
+                        </div>
+                        <div class="sla-metric ok">
+                            <span class="value" id="sla-ok">0</span>
+                            <span class="label">En tiempo</span>
+                        </div>
+                        <div class="sla-metric warning">
+                            <span class="value" id="sla-warning">0</span>
+                            <span class="label">Por vencer</span>
+                        </div>
+                        <div class="sla-metric breached">
+                            <span class="value" id="sla-breached">0</span>
+                            <span class="label">Vencidos</span>
+                        </div>
+                    </div>
+                    <div class="card" style="margin-top:1rem; background:#f8fafc;">
+                        <h3>Tiempos máximos por prioridad</h3>
+                        <div style="display:grid; grid-template-columns: repeat(4,1fr); gap:1rem; text-align:center;">
+                            <div>
+                                <span class="tag tag-priority-critical">Crítica</span>
+                                <p style="margin-top:0.5rem; font-weight:700; font-size:1.1rem;">1h</p>
+                            </div>
+                            <div>
+                                <span class="tag tag-priority-high">Alta</span>
+                                <p style="margin-top:0.5rem; font-weight:700; font-size:1.1rem;">4h</p>
+                            </div>
+                            <div>
+                                <span class="tag tag-priority-medium">Media</span>
+                                <p style="margin-top:0.5rem; font-weight:700; font-size:1.1rem;">8h</p>
+                            </div>
+                            <div>
+                                <span class="tag tag-priority-low">Baja</span>
+                                <p style="margin-top:0.5rem; font-weight:700; font-size:1.1rem;">24h</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="sla-panel">
+                    <h3><i class="fas fa-list"></i> Tickets Activos</h3>
+                    <div id="sla-list" class="sla-list"></div>
+                </div>
             </div>
 
             <!-- Admin: Usuarios -->
