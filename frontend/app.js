@@ -207,7 +207,9 @@ function showSection(name, el) {
     if (name === 'admin-users') loadUsers();
     if (name === 'admin-tickets') loadAllTickets();
     if (name === 'inventory') loadInventory();
-    if (name === 'sla') loadSLA();  // ← agrega esta línea
+    if (name === 'sla') loadSLA(); 
+    if (name === 'admin-users') loadUsers();
+    if (name === 'reports') loadReports(); 
     if (name === 'admin-users') loadUsers();
 }
 
@@ -903,5 +905,355 @@ function getSLABadge(createdAt, priority) {
     } else {
         const remaining = slaHours - elapsedHours;
         return `<span class="sla-badge sla-ok"><i class="fas fa-check"></i> ${formatHours(remaining)}</span>`;
+    }
+}
+
+// ── REPORTES ──────────────────────────────────────────────────
+
+async function loadReports() {
+    // Cargar el reporte por defecto (técnico)
+    showReport('technician', document.querySelector('.report-tab'));
+}
+
+function showReport(type, el) {
+    document.querySelectorAll('.report-tab').forEach(t => t.classList.remove('active'));
+    if (el) el.classList.add('active');
+
+    const container = document.getElementById('report-content');
+    container.innerHTML = '<p style="color:#64748b; padding:2rem;">Cargando reporte...</p>';
+
+    if (type === 'technician') loadReportTechnician();
+    if (type === 'location') loadReportLocation();
+    if (type === 'sla-location') loadReportSLALocation();
+    if (type === 'assets-location') loadReportAssetsLocation();
+    if (type === 'summary') loadReportSummary();
+}
+
+async function loadReportTechnician() {
+    const container = document.getElementById('report-content');
+    try {
+        const res = await apiFetch('/reports/tickets-by-technician');
+        const data = await res.json();
+
+        if (data.length === 0) {
+            container.innerHTML = emptyState('user-cog', 'No hay técnicos registrados');
+            return;
+        }
+
+        container.innerHTML = `
+            <div class="card">
+                <h3>Tickets por Técnico</h3>
+                <table class="admin-table">
+                    <thead>
+                        <tr>
+                            <th>Técnico</th>
+                            <th>Total</th>
+                            <th>Abiertos</th>
+                            <th>En Progreso</th>
+                            <th>Resueltos</th>
+                            <th>Cerrados</th>
+                            <th>Progreso</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${data.map(t => {
+                            const resolved = t.resolved + t.closed;
+                            const pct = t.total > 0 ? Math.round((resolved / t.total) * 100) : 0;
+                            return `
+                                <tr>
+                                    <td>
+                                        <div style="font-weight:600">${t.technician_name}</div>
+                                        <div style="font-size:0.8rem;color:#64748b">${t.email}</div>
+                                    </td>
+                                    <td><strong>${t.total}</strong></td>
+                                    <td><span class="tag tag-status-open">${t.open}</span></td>
+                                    <td><span class="tag tag-status-in_progress">${t.in_progress}</span></td>
+                                    <td><span class="tag tag-status-resolved">${t.resolved}</span></td>
+                                    <td><span class="tag tag-status-closed">${t.closed}</span></td>
+                                    <td>
+                                        <div style="display:flex;align-items:center;gap:0.5rem;">
+                                            <div style="flex:1;background:#f1f5f9;border-radius:999px;height:8px;overflow:hidden;">
+                                                <div style="width:${pct}%;height:100%;background:#16a34a;border-radius:999px;"></div>
+                                            </div>
+                                            <span style="font-size:0.8rem;font-weight:700;color:#16a34a">${pct}%</span>
+                                        </div>
+                                    </td>
+                                </tr>
+                            `;
+                        }).join('')}
+                    </tbody>
+                </table>
+            </div>
+        `;
+    } catch (err) {
+        container.innerHTML = '<p style="color:red">Error cargando reporte</p>';
+    }
+}
+
+async function loadReportLocation() {
+    const container = document.getElementById('report-content');
+    try {
+        const res = await apiFetch('/reports/tickets-by-location');
+        const data = await res.json();
+
+        if (data.length === 0) {
+            container.innerHTML = emptyState('map-marker-alt', 'No hay sedes registradas');
+            return;
+        }
+
+        container.innerHTML = `
+            <div class="card">
+                <h3>Tickets por Sede</h3>
+                <table class="admin-table">
+                    <thead>
+                        <tr>
+                            <th>Sede</th>
+                            <th>Total</th>
+                            <th>Abiertos</th>
+                            <th>En Progreso</th>
+                            <th>Resueltos</th>
+                            <th>Críticos</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${data.map(l => `
+                            <tr>
+                                <td>
+                                    <i class="fas fa-map-marker-alt" style="color:#2563eb;margin-right:0.4rem;"></i>
+                                    <strong>${l.location_name}</strong>
+                                </td>
+                                <td><strong>${l.total}</strong></td>
+                                <td><span class="tag tag-status-open">${l.open}</span></td>
+                                <td><span class="tag tag-status-in_progress">${l.in_progress}</span></td>
+                                <td><span class="tag tag-status-resolved">${l.resolved}</span></td>
+                                <td><span class="tag tag-priority-critical">${l.critical}</span></td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            </div>
+        `;
+    } catch (err) {
+        container.innerHTML = '<p style="color:red">Error cargando reporte</p>';
+    }
+}
+
+async function loadReportSLALocation() {
+    const container = document.getElementById('report-content');
+    try {
+        const res = await apiFetch('/reports/sla-by-location');
+        const data = await res.json();
+
+        if (data.length === 0) {
+            container.innerHTML = emptyState('clock', 'No hay datos de SLA');
+            return;
+        }
+
+        container.innerHTML = `
+            <div class="card">
+                <h3>Cumplimiento SLA por Sede</h3>
+                <table class="admin-table">
+                    <thead>
+                        <tr>
+                            <th>Sede</th>
+                            <th>Tickets Activos</th>
+                            <th>En Tiempo</th>
+                            <th>Por Vencer</th>
+                            <th>Vencidos</th>
+                            <th>Cumplimiento</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${data.map(l => {
+                            const color = l.compliance_rate >= 90 ? '#16a34a' : l.compliance_rate >= 70 ? '#d97706' : '#dc2626';
+                            return `
+                                <tr>
+                                    <td>
+                                        <i class="fas fa-map-marker-alt" style="color:#2563eb;margin-right:0.4rem;"></i>
+                                        <strong>${l.location_name}</strong>
+                                    </td>
+                                    <td>${l.total_active}</td>
+                                    <td><span class="tag sla-ok">${l.ok}</span></td>
+                                    <td><span class="tag sla-warning">${l.warning}</span></td>
+                                    <td><span class="tag sla-breached">${l.breached}</span></td>
+                                    <td>
+                                        <div style="display:flex;align-items:center;gap:0.5rem;">
+                                            <div style="flex:1;background:#f1f5f9;border-radius:999px;height:8px;overflow:hidden;">
+                                                <div style="width:${l.compliance_rate}%;height:100%;background:${color};border-radius:999px;"></div>
+                                            </div>
+                                            <span style="font-weight:700;color:${color}">${l.compliance_rate}%</span>
+                                        </div>
+                                    </td>
+                                </tr>
+                            `;
+                        }).join('')}
+                    </tbody>
+                </table>
+            </div>
+        `;
+    } catch (err) {
+        container.innerHTML = '<p style="color:red">Error cargando reporte</p>';
+    }
+}
+
+async function loadReportAssetsLocation() {
+    const container = document.getElementById('report-content');
+    try {
+        const res = await apiFetch('/reports/assets-by-location');
+        const data = await res.json();
+
+        if (data.length === 0) {
+            container.innerHTML = emptyState('boxes', 'No hay activos registrados');
+            return;
+        }
+
+        container.innerHTML = `
+            <div class="card">
+                <h3>Activos por Sede</h3>
+                <table class="admin-table">
+                    <thead>
+                        <tr>
+                            <th>Sede</th>
+                            <th>Total</th>
+                            <th>Activos</th>
+                            <th>En Reparación</th>
+                            <th>Mantenimiento</th>
+                            <th>Dados de Baja</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${data.map(l => `
+                            <tr>
+                                <td>
+                                    <i class="fas fa-map-marker-alt" style="color:#2563eb;margin-right:0.4rem;"></i>
+                                    <strong>${l.location_name}</strong>
+                                </td>
+                                <td><strong>${l.total}</strong></td>
+                                <td><span class="tag tag-asset-status-active">${l.active}</span></td>
+                                <td><span class="tag tag-asset-status-in_repair">${l.in_repair}</span></td>
+                                <td><span class="tag tag-asset-status-maintenance">${l.maintenance}</span></td>
+                                <td><span class="tag tag-asset-status-retired">${l.retired}</span></td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            </div>
+        `;
+    } catch (err) {
+        container.innerHTML = '<p style="color:red">Error cargando reporte</p>';
+    }
+}
+
+async function loadReportSummary() {
+    const container = document.getElementById('report-content');
+    try {
+        const res = await apiFetch('/reports/summary');
+        const data = await res.json();
+
+        container.innerHTML = `
+            <div class="card">
+                <h3>
+                    Resumen Ejecutivo
+                    <span style="font-size:0.8rem;font-weight:400;color:#64748b;margin-left:1rem;">
+                        Generado: ${new Date(data.generated_at).toLocaleString('es-CO')}
+                    </span>
+                </h3>
+
+                <div class="metrics-grid" style="margin-bottom:1.5rem;">
+                    <div class="metric-card blue">
+                        <i class="fas fa-ticket-alt"></i>
+                        <div class="metric-info">
+                            <span class="metric-value">${data.totals.tickets}</span>
+                            <span class="metric-label">Total Tickets</span>
+                        </div>
+                    </div>
+                    <div class="metric-card green">
+                        <i class="fas fa-users"></i>
+                        <div class="metric-info">
+                            <span class="metric-value">${data.totals.users}</span>
+                            <span class="metric-label">Usuarios</span>
+                        </div>
+                    </div>
+                    <div class="metric-card yellow">
+                        <i class="fas fa-boxes"></i>
+                        <div class="metric-info">
+                            <span class="metric-value">${data.totals.assets}</span>
+                            <span class="metric-label">Activos</span>
+                        </div>
+                    </div>
+                    <div class="metric-card red">
+                        <i class="fas fa-map-marker-alt"></i>
+                        <div class="metric-info">
+                            <span class="metric-value">${data.totals.locations}</span>
+                            <span class="metric-label">Sedes</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="cards-row">
+                    <div class="card" style="margin-bottom:0;">
+                        <h3>Tickets por Estado</h3>
+                        <div class="summary-item">
+                            <span>Abiertos</span>
+                            <span class="tag tag-status-open">${data.tickets_by_status.open}</span>
+                        </div>
+                        <div class="summary-item">
+                            <span>En Progreso</span>
+                            <span class="tag tag-status-in_progress">${data.tickets_by_status.in_progress}</span>
+                        </div>
+                        <div class="summary-item">
+                            <span>Resueltos</span>
+                            <span class="tag tag-status-resolved">${data.tickets_by_status.resolved}</span>
+                        </div>
+                        <div class="summary-item">
+                            <span>Cerrados</span>
+                            <span class="tag tag-status-closed">${data.tickets_by_status.closed}</span>
+                        </div>
+                        <div class="summary-item" style="margin-top:1rem;padding-top:1rem;border-top:2px solid #e2e8f0;">
+                            <span style="font-weight:700;">Tasa de Resolución</span>
+                            <span style="font-weight:700;color:#16a34a;font-size:1.1rem;">${data.resolution_rate}%</span>
+                        </div>
+                    </div>
+                    <div class="card" style="margin-bottom:0;">
+                        <h3>Tickets por Prioridad</h3>
+                        <div class="summary-item">
+                            <span>Crítica</span>
+                            <span class="tag tag-priority-critical">${data.tickets_by_priority.critical}</span>
+                        </div>
+                        <div class="summary-item">
+                            <span>Alta</span>
+                            <span class="tag tag-priority-high">${data.tickets_by_priority.high}</span>
+                        </div>
+                        <div class="summary-item">
+                            <span>Media</span>
+                            <span class="tag tag-priority-medium">${data.tickets_by_priority.medium}</span>
+                        </div>
+                        <div class="summary-item">
+                            <span>Baja</span>
+                            <span class="tag tag-priority-low">${data.tickets_by_priority.low}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    } catch (err) {
+        container.innerHTML = '<p style="color:red">Error cargando reporte</p>';
+    }
+}
+
+async function exportCSV(type) {
+    try {
+        const res = await apiFetch(`/reports/export/${type}`);
+        const blob = await res.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${type}_hus_${new Date().toISOString().split('T')[0]}.csv`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+    } catch (err) {
+        alert('Error al exportar');
     }
 }

@@ -68,6 +68,9 @@
                     <i class="fas fa-clock"></i> SLA
                     <span id="sla-breach-badge" class="nav-sla-badge hidden">0</span>
                 </a>
+                <a href="#" class="nav-item" id="nav-reports" onclick="showSection('reports', this)">
+                    <i class="fas fa-chart-pie"></i> Reportes
+                </a>
 
                 <!-- Solo visible para admin y técnico -->
                 <div id="admin-nav" class="hidden">
@@ -451,6 +454,42 @@
                     <h3><i class="fas fa-list"></i> Tickets Activos</h3>
                     <div id="sla-list" class="sla-list"></div>
                 </div>
+            </div>
+
+            <!-- Reportes -->
+            <div id="section-reports" class="section hidden">
+                <div class="section-header">
+                    <h3>Reportes</h3>
+                    <div style="display:flex; gap:0.75rem;">
+                        <button class="btn btn-secondary" onclick="exportCSV('tickets')">
+                            <i class="fas fa-file-csv"></i> Exportar Tickets
+                        </button>
+                        <button class="btn btn-secondary" onclick="exportCSV('assets')">
+                            <i class="fas fa-file-csv"></i> Exportar Activos
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Tabs de reportes -->
+                <div class="report-tabs">
+                    <button class="report-tab active" onclick="showReport('technician', this)">
+                        <i class="fas fa-user-cog"></i> Por Técnico
+                    </button>
+                    <button class="report-tab" onclick="showReport('location', this)">
+                        <i class="fas fa-map-marker-alt"></i> Por Sede
+                    </button>
+                    <button class="report-tab" onclick="showReport('sla-location', this)">
+                        <i class="fas fa-clock"></i> SLA por Sede
+                    </button>
+                    <button class="report-tab" onclick="showReport('assets-location', this)">
+                        <i class="fas fa-boxes"></i> Activos por Sede
+                    </button>
+                    <button class="report-tab" onclick="showReport('summary', this)">
+                        <i class="fas fa-chart-bar"></i> Resumen Ejecutivo
+                    </button>
+                </div>
+
+                <div id="report-content" class="report-content"></div>
             </div>
 
             <!-- Admin: Usuarios -->
